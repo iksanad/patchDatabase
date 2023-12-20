@@ -929,66 +929,82 @@ begin
       CheckQuery.Next;
     end;
 
-    TriggerQuery := 'SELECT * FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = :Database';
+//    TriggerQuery := 'SELECT * FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = :Database';
 
     SourceQuery.Connection := con1;
-    SourceQuery.SQL.Text := TriggerQuery;
-    SourceQuery.ParamByName('Database').AsString := SourceDB;
-    SourceQuery.Open;
+//    SourceQuery.SQL.Text := TriggerQuery;
+//    SourceQuery.ParamByName('Database').AsString := SourceDB;
+//    SourceQuery.Open;
 
     CheckQuery.Connection := con2;
-    CheckQuery.SQL.Text := TriggerQuery;
-    CheckQuery.ParamByName('Database').AsString := CheckDB;
-    CheckQuery.Open;
+//    CheckQuery.SQL.Text := TriggerQuery;
+//    CheckQuery.ParamByName('Database').AsString := CheckDB;
+//    CheckQuery.Open;
 
     for TriggerName in SourceTrigger do
     begin
-      SourceQuery.Filtered := False;
-      SourceQuery.Filter := 'TRIGGER_NAME = ' + QuotedStr(TriggerName);
-      SourceQuery.Filtered := True;
+//      SourceQuery.Filtered := False;
+//      SourceQuery.Filter := 'TRIGGER_NAME = ' + QuotedStr(TriggerName);
+//      SourceQuery.Filtered := True;
 
-      CheckQuery.Filtered := False;
-      CheckQuery.Filter := 'TRIGGER_NAME = ' + QuotedStr(TriggerName);
-      CheckQuery.Filtered := True;
+//      CheckQuery.Filtered := False;
+//      CheckQuery.Filter := 'TRIGGER_NAME = ' + QuotedStr(TriggerName);
+//      CheckQuery.Filtered := True;
 
       sMemo2.Text := '';
 
+//      if CheckQuery.Fields[2].AsString = '' then
       if CheckTrigger.IndexOf(TriggerName) = -1 then
       begin
         // Create Trigger
+        SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + TriggerName + '`';
+        SourceQuery.Open;
+
         sMemo2.Lines.Add('/* New Trigger */');
         sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`' + delimiterNonTables);
-        sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
-          SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
-          ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
-          SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
+//        sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
+//          SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
+//          ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
+//          SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
 
-        sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
+//        sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
+        sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
       end
       else
       begin
         // Edit Trigger
+        SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + TriggerName + '`';
+        SourceQuery.Open;
+
+        CheckQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + CheckDB + '`.`' + TriggerName + '`';
+        CheckQuery.Open;
+
         PatchFlag := False;
 
-        if (SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString) <> (CheckQuery.FieldByName('ACTION_TIMING').AsString + ' ' + CheckQuery.FieldByName('EVENT_MANIPULATION').AsString) then
+//        if (SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString) <> (CheckQuery.FieldByName('ACTION_TIMING').AsString + ' ' + CheckQuery.FieldByName('EVENT_MANIPULATION').AsString) then
+//          PatchFlag := True;
+
+//        if SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString <> CheckQuery.FieldByName('EVENT_OBJECT_TABLE').AsString then
+//          PatchFlag := True;
+
+//        if SourceQuery.FieldByName('ACTION_STATEMENT').AsString <> CheckQuery.FieldByName('ACTION_STATEMENT').AsString then
+//          PatchFlag := True;
+
+        if SourceQuery.Fields[2].AsString <> CheckQuery.Fields[2].AsString then
           PatchFlag := True;
 
-        if SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString <> CheckQuery.FieldByName('EVENT_OBJECT_TABLE').AsString then
-          PatchFlag := True;
-
-        if SourceQuery.FieldByName('ACTION_STATEMENT').AsString <> CheckQuery.FieldByName('ACTION_STATEMENT').AsString then
-          PatchFlag := True;
 
         if PatchFlag = True then
         begin
           sMemo2.Lines.Add('/* Updated Trigger */');
           sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`' + delimiterNonTables);
-          sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
-            SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
-            ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
-            SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
+//          sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
+//            SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
+//            ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
+//            SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
 
-          sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
+//          sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
+          sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
         end;
       end;
 
