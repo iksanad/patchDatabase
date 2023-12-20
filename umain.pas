@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.StdCtrls, sMemo, Vcl.ExtCtrls, sButton, Vcl.Buttons, sLabel, Data.DB,
-  DBAccess, MyAccess, sEdit, MemDS, Clipbrd;
+  DBAccess, MyAccess, sEdit, MemDS, Clipbrd, sCheckBox;
 
 type
   TFPATCH = class(TForm)
@@ -20,15 +20,16 @@ type
     sLabel3: TsLabel;
     con1: TMyConnection;
     cServer: TsEdit;
-    bStartPatch: TsButton;
     bCopy: TsButton;
     cServer2: TsEdit;
     sLabel4: TsLabel;
     bDelete: TsButton;
     con2: TMyConnection;
-    sEdit1: TsEdit;
+    eDelimiter: TsEdit;
     sLabel5: TsLabel;
     sMemo2: TsMemo;
+    cAutoPatch: TsCheckBox;
+    bInfo: TsButton;
     procedure FormCreate(Sender: TObject);
     procedure cServerExit(Sender: TObject);
     procedure cServerChange(Sender: TObject);
@@ -39,8 +40,11 @@ type
     procedure bDeleteClick(Sender: TObject);
     procedure cServer2Exit(Sender: TObject);
     procedure cServer2Change(Sender: TObject);
+    procedure eDelimiterChange(Sender: TObject);
+    procedure bInfoClick(Sender: TObject);
   private
     { Private declarations }
+    delimiterNonTables: string;
     function ConnectDatabase(Server, Database: string): Boolean;
     function GetCompositeColumns(Query: TMyQuery; keyName: string): string;
     function GetCompositeParameters(Query: TMyQuery; Database, RoutineName: string): string;
@@ -163,6 +167,7 @@ end;
 procedure TFPATCH.bDeleteClick(Sender: TObject);
 begin
   sMemo1.Text := '';
+  sMemo2.Text := '';
 end;
 
 procedure TFPATCH.cDBcheckEnter(Sender: TObject);
@@ -278,6 +283,7 @@ procedure TFPATCH.FormCreate(Sender: TObject);
 begin
   cServer.Text := con1.Server;
   cServer2.Text := con2.Server;
+  delimiterNonTables := eDelimiter.Text;
 end;
 
 procedure TFPATCH.CreatePatchTable;
@@ -554,6 +560,19 @@ begin
   end;
 end;
 
+procedure TFPATCH.bInfoClick(Sender: TObject);
+begin
+  ShowMessage('Dalam Tahap Pengembangan');
+end;
+
+procedure TFPATCH.eDelimiterChange(Sender: TObject);
+begin
+  if eDelimiter.Text <> '' then
+    delimiterNonTables := eDelimiter.Text
+  else
+    delimiterNonTables := '|';
+end;
+
 procedure TFPATCH.CreatePatchRoutines;
 var
   SourceQuery, CheckQuery, ParameterQuery, ParameterQuery2: TMyQuery;
@@ -650,7 +669,8 @@ begin
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
         // Create Procedure
-        sMemo2.Lines.Add('DROP PROCEDURE IF EXISTS `' + RoutinesName + '`|');
+        sMemo2.Lines.Add('/* New Procedure */');
+        sMemo2.Lines.Add('DROP PROCEDURE IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
         sMemo2.Lines.Add('CREATE PROCEDURE `' + RoutinesName + '`(');
 //        sMemo2.Lines.Add(GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName));
 
@@ -666,7 +686,7 @@ begin
             sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
         end;
         sMemo2.Lines.Add(')');
-        sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + '|');
+        sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
         sMemo2.Lines.Add('');
       end
       else
@@ -682,7 +702,8 @@ begin
 
         if patchFlag then
         begin
-          sMemo2.Lines.Add('DROP PROCEDURE IF EXISTS `' + RoutinesName + '`|');
+          sMemo2.Lines.Add('/* Updated Procedure */');
+          sMemo2.Lines.Add('DROP PROCEDURE IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
           sMemo2.Lines.Add('CREATE PROCEDURE `' + RoutinesName + '`(');
 
           ParameterQuery.First;
@@ -697,7 +718,7 @@ begin
               sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
           end;
           sMemo2.Lines.Add(')');
-          sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + '|');
+          sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
           sMemo2.Lines.Add('');
         end;
       end;
@@ -789,7 +810,8 @@ begin
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
         // Create Function
-        sMemo2.Lines.Add('DROP FUNCTION IF EXISTS `' + RoutinesName + '`|');
+        sMemo2.Lines.Add('/* New Function */');
+        sMemo2.Lines.Add('DROP FUNCTION IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
         sMemo2.Lines.Add('CREATE FUNCTION `' + RoutinesName + '`(');
 //        sMemo2.Lines.Add(GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName));
 
@@ -805,7 +827,7 @@ begin
             sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
         end;
         sMemo2.Lines.Add(') RETURNS ' + SourceQuery.FieldByName('DTD_IDENTIFIER').AsString);
-        sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + '|');
+        sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
         sMemo2.Lines.Add('');
       end
       else
@@ -824,7 +846,8 @@ begin
 
         if patchFlag then
         begin
-          sMemo2.Lines.Add('DROP FUNCTION IF EXISTS `' + RoutinesName + '`|');
+          sMemo2.Lines.Add('/* Updated Function */');
+          sMemo2.Lines.Add('DROP FUNCTION IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
           sMemo2.Lines.Add('CREATE FUNCTION `' + RoutinesName + '`(');
 
           ParameterQuery.First;
@@ -839,7 +862,7 @@ begin
               sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
           end;
           sMemo2.Lines.Add(') RETURNS ' + SourceQuery.FieldByName('DTD_IDENTIFIER').AsString);
-          sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + '|');
+          sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
           sMemo2.Lines.Add('');
         end;
       end;
@@ -933,13 +956,14 @@ begin
       if CheckTrigger.IndexOf(TriggerName) = -1 then
       begin
         // Create Trigger
-        sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`|');
+        sMemo2.Lines.Add('/* New Trigger */');
+        sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`' + delimiterNonTables);
         sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
           SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
           ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
           SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
 
-        sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + '|');
+        sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
       end
       else
       begin
@@ -957,13 +981,14 @@ begin
 
         if PatchFlag = True then
         begin
-          sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`|');
+          sMemo2.Lines.Add('/* Updated Trigger */');
+          sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`' + delimiterNonTables);
           sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
             SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
             ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
             SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
 
-          sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + '|');
+          sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
         end;
       end;
 

@@ -27,6 +27,9 @@ object FPATCH: TFPATCH
     TabOrder = 0
     ExplicitWidth = 1008
     ExplicitHeight = 805
+    DesignSize = (
+      1018
+      808)
     object sLabel1: TsLabel
       Left = 18
       Top = 13
@@ -96,19 +99,19 @@ object FPATCH: TFPATCH
       Font.Style = [fsBold]
     end
     object sLabel5: TsLabel
-      Left = 739
-      Top = 109
-      Width = 212
-      Height = 25
+      Left = 777
+      Top = 42
+      Width = 202
+      Height = 28
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      Caption = 'DELIMITER NON-TABLES'
+      Caption = 'Delimiter Non-Tables'
       ParentFont = False
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
-      Font.Height = -18
+      Font.Height = -20
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
     end
@@ -151,8 +154,8 @@ object FPATCH: TFPATCH
       OnEnter = cDBcheckEnter
     end
     object bCreatePatch: TsButton
-      Left = 542
-      Top = 30
+      Left = 519
+      Top = 106
       Width = 130
       Height = 45
       Margins.Left = 4
@@ -191,36 +194,9 @@ object FPATCH: TFPATCH
       OnChange = cServerChange
       OnExit = cServerExit
     end
-    object bStartPatch: TsButton
-      Left = 856
-      Top = 30
-      Width = 142
-      Height = 45
-      Margins.Left = 4
-      Margins.Top = 4
-      Margins.Right = 4
-      Margins.Bottom = 4
-      Caption = 'Patch Database'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -18
-      Font.Name = 'Segoe UI'
-      Font.Style = [fsBold]
-      ParentFont = False
-      TabOrder = 5
-      AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
-      SkinData.CustomColor = True
-      SkinData.CustomFont = True
-      SkinData.ColorTone = 6248624
-      CommandLinkFont.Charset = DEFAULT_CHARSET
-      CommandLinkFont.Color = 3155860
-      CommandLinkFont.Height = -18
-      CommandLinkFont.Name = 'Segoe UI'
-      CommandLinkFont.Style = []
-    end
     object bCopy: TsButton
-      Left = 699
-      Top = 30
+      Left = 657
+      Top = 106
       Width = 130
       Height = 45
       Margins.Left = 4
@@ -234,7 +210,7 @@ object FPATCH: TFPATCH
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
       ParentFont = False
-      TabOrder = 6
+      TabOrder = 5
       OnClick = bCopyClick
       AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
       SkinData.CustomColor = True
@@ -255,13 +231,13 @@ object FPATCH: TFPATCH
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      TabOrder = 7
+      TabOrder = 6
       OnChange = cServer2Change
       OnExit = cServer2Exit
     end
     object bDelete: TsButton
-      Left = 542
-      Top = 100
+      Left = 795
+      Top = 106
       Width = 130
       Height = 45
       Margins.Left = 4
@@ -275,7 +251,7 @@ object FPATCH: TFPATCH
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
       ParentFont = False
-      TabOrder = 8
+      TabOrder = 7
       OnClick = bDeleteClick
       AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
       SkinData.CustomColor = True
@@ -286,26 +262,26 @@ object FPATCH: TFPATCH
       CommandLinkFont.Name = 'Segoe UI'
       CommandLinkFont.Style = []
     end
-    object sEdit1: TsEdit
-      Left = 959
-      Top = 106
+    object eDelimiter: TsEdit
+      Left = 730
+      Top = 39
       Width = 39
-      Height = 33
+      Height = 42
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
       Alignment = taCenter
+      Anchors = [akLeft, akTop, akRight, akBottom]
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
-      Font.Height = -18
+      Font.Height = -20
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
       ParentFont = False
-      TabOrder = 9
-      Text = ';'
-      OnChange = cServerChange
-      OnExit = cServerExit
+      TabOrder = 8
+      Text = '|'
+      OnChange = eDelimiterChange
     end
     object sMemo2: TsMemo
       Left = 39
@@ -317,8 +293,53 @@ object FPATCH: TFPATCH
       Margins.Right = 4
       Margins.Bottom = 4
       ScrollBars = ssBoth
-      TabOrder = 10
+      TabOrder = 9
       Visible = False
+    end
+    object cAutoPatch: TsCheckBox
+      Left = 519
+      Top = 41
+      Width = 172
+      Height = 32
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Caption = 'Otomatis Patch'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -20
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ParentFont = False
+      TabOrder = 10
+    end
+    object bInfo: TsButton
+      Left = 933
+      Top = 106
+      Width = 65
+      Height = 45
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Caption = 'Info'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -18
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ParentFont = False
+      TabOrder = 11
+      OnClick = bInfoClick
+      AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
+      SkinData.CustomColor = True
+      SkinData.CustomFont = True
+      CommandLinkFont.Charset = DEFAULT_CHARSET
+      CommandLinkFont.Color = 3155860
+      CommandLinkFont.Height = -18
+      CommandLinkFont.Name = 'Segoe UI'
+      CommandLinkFont.Style = []
     end
   end
   object con1: TMyConnection
