@@ -98,23 +98,6 @@ object FPATCH: TFPATCH
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
     end
-    object sLabel5: TsLabel
-      Left = 777
-      Top = 42
-      Width = 202
-      Height = 28
-      Margins.Left = 4
-      Margins.Top = 4
-      Margins.Right = 4
-      Margins.Bottom = 4
-      Caption = 'Delimiter Non-Tables'
-      ParentFont = False
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -20
-      Font.Name = 'Segoe UI'
-      Font.Style = [fsBold]
-    end
     object sMemo1: TsMemo
       Left = 18
       Top = 179
@@ -152,9 +135,9 @@ object FPATCH: TFPATCH
       OnEnter = cDBcheckEnter
     end
     object bCreatePatch: TsButton
-      Left = 519
-      Top = 106
-      Width = 130
+      Left = 560
+      Top = 36
+      Width = 250
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
@@ -193,9 +176,9 @@ object FPATCH: TFPATCH
       OnExit = cServerExit
     end
     object bCopy: TsButton
-      Left = 657
+      Left = 560
       Top = 106
-      Width = 130
+      Width = 152
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
@@ -234,9 +217,9 @@ object FPATCH: TFPATCH
       OnExit = cServer2Exit
     end
     object bDelete: TsButton
-      Left = 795
+      Left = 720
       Top = 106
-      Width = 130
+      Width = 134
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
@@ -261,8 +244,8 @@ object FPATCH: TFPATCH
       CommandLinkFont.Style = []
     end
     object eDelimiter: TsEdit
-      Left = 730
-      Top = 39
+      Left = 959
+      Top = -6
       Width = 39
       Height = 39
       Margins.Left = 4
@@ -279,9 +262,8 @@ object FPATCH: TFPATCH
       ParentFont = False
       TabOrder = 8
       Text = '|'
+      Visible = False
       OnChange = eDelimiterChange
-      ExplicitWidth = 29
-      ExplicitHeight = 36
     end
     object sMemo2: TsMemo
       Left = 39
@@ -297,7 +279,7 @@ object FPATCH: TFPATCH
       Visible = False
     end
     object cAutoPatch: TsCheckBox
-      Left = 519
+      Left = 826
       Top = 41
       Width = 172
       Height = 32
@@ -315,16 +297,16 @@ object FPATCH: TFPATCH
       TabOrder = 10
       OnExit = cAutoPatchExit
     end
-    object bInfo: TsButton
-      Left = 933
+    object bExit: TsButton
+      Left = 862
       Top = 106
-      Width = 65
+      Width = 136
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      Caption = 'Info'
+      Caption = 'Keluar'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -18
@@ -332,7 +314,7 @@ object FPATCH: TFPATCH
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 11
-      OnClick = bInfoClick
+      OnClick = bExitClick
       AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
       SkinData.CustomColor = True
       SkinData.CustomFont = True

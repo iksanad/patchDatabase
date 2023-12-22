@@ -26,10 +26,9 @@ type
     bDelete: TsButton;
     con2: TMyConnection;
     eDelimiter: TsEdit;
-    sLabel5: TsLabel;
     sMemo2: TsMemo;
     cAutoPatch: TsCheckBox;
-    bInfo: TsButton;
+    bExit: TsButton;
     procedure FormCreate(Sender: TObject);
     procedure cServerExit(Sender: TObject);
     procedure cServerChange(Sender: TObject);
@@ -41,8 +40,8 @@ type
     procedure cServer2Exit(Sender: TObject);
     procedure cServer2Change(Sender: TObject);
     procedure eDelimiterChange(Sender: TObject);
-    procedure bInfoClick(Sender: TObject);
     procedure cAutoPatchExit(Sender: TObject);
+    procedure bExitClick(Sender: TObject);
   private
     { Private declarations }
     autoPatch: boolean;
@@ -575,9 +574,9 @@ begin
   end;
 end;
 
-procedure TFPATCH.bInfoClick(Sender: TObject);
+procedure TFPATCH.bExitClick(Sender: TObject);
 begin
-  ShowMessage('Dalam Tahap Pengembangan');
+  Application.Terminate;
 end;
 
 procedure TFPATCH.eDelimiterChange(Sender: TObject);
