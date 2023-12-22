@@ -137,7 +137,6 @@ object FPATCH: TFPATCH
       Margins.Right = 4
       Margins.Bottom = 4
       TabOrder = 1
-      Text = 'ComboBox1'
       OnEnter = cDBsourceEnter
     end
     object cDBcheck: TComboBox
@@ -150,7 +149,6 @@ object FPATCH: TFPATCH
       Margins.Right = 4
       Margins.Bottom = 4
       TabOrder = 2
-      Text = 'ComboBox1'
       OnEnter = cDBcheckEnter
     end
     object bCreatePatch: TsButton
@@ -266,7 +264,7 @@ object FPATCH: TFPATCH
       Left = 730
       Top = 39
       Width = 39
-      Height = 42
+      Height = 39
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
@@ -282,6 +280,8 @@ object FPATCH: TFPATCH
       TabOrder = 8
       Text = '|'
       OnChange = eDelimiterChange
+      ExplicitWidth = 29
+      ExplicitHeight = 36
     end
     object sMemo2: TsMemo
       Left = 39
@@ -313,6 +313,7 @@ object FPATCH: TFPATCH
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 10
+      OnExit = cAutoPatchExit
     end
     object bInfo: TsButton
       Left = 933

@@ -42,15 +42,18 @@ type
     procedure cServer2Change(Sender: TObject);
     procedure eDelimiterChange(Sender: TObject);
     procedure bInfoClick(Sender: TObject);
+    procedure cAutoPatchExit(Sender: TObject);
   private
     { Private declarations }
-    delimiterNonTables: string;
+    autoPatch: boolean;
+    delimiterNonTables, folderPatch, QRunning: string;
     function ConnectDatabase(Server, Database: string): Boolean;
     function GetCompositeColumns(Query: TMyQuery; keyName: string): string;
     function GetCompositeParameters(Query: TMyQuery; Database, RoutineName: string): string;
     procedure CreatePatchTable;
     procedure CreatePatchRoutines;
     procedure CreatePatchTrigger;
+    procedure AutoPatching;
   public
     { Public declarations }
   end;
@@ -125,7 +128,7 @@ end;
 
 procedure TFPATCH.bCreatePatchClick(Sender: TObject);
 var
-  PatchFileName: string;
+  PatchFileName, dateFile: string;
   Confirmation: Integer;
 begin
   if (cDBsource.Text = '') or (cDBcheck.Text = '') then
@@ -142,18 +145,42 @@ begin
     end
     else
     begin
+      Confirmation := MessageDlg('Yakin ingin Patch, Apakah Database Lama dan Baru sudah Benar?', mtConfirmation, mbYesNo, 0);
+      if Confirmation <> mrYes then
+      begin
+        MessageDlg('Patch dibatalkan..', mtInformation, [mbOK], 0);
+        Exit;
+      end;
+
+      folderPatch := cDBsource.Text + ' - ' + cDBcheck.Text + ' (' + FormatDateTime('dd-mmm-yyyy', Now) + ')';
+      if DirectoryExists(folderPatch) then
+      begin
+        RemoveDir(folderPatch);
+        CreateDir(folderPatch);
+      end
+      else
+        CreateDir(folderPatch);
+
+      PatchFileName := FormatDateTime('yymmdd-hh.nn.ss', Now) + '.txt';
       sMemo1.Cursor := crAppStart;
       sMemo1.Text := '';
 
       CreatePatchTable;
-      CreatePatchRoutines;
+//      CreatePatchRoutines;
       CreatePatchTrigger;
 
       sMemo1.Cursor := crDefault;
 
-      PatchFileName := FormatDateTime('yymmdd-hh.nn.ss', Now) + '.txt';
-      sMemo1.Lines.SaveToFile(PatchFileName);
-      MessageDlg('Sukses Membuat Patch ' + PatchFileName + #13 + 'Patch Procedure, Function, dan Trigger Tersimpan di Folder Masing-masing.', mtInformation, [mbOK], 0)
+      if sMemo1.Text <> '' then
+      begin
+        sMemo1.Lines.SaveToFile(folderPatch + '\' + PatchFileName);
+      end;
+
+      if not autoPatch then
+        MessageDlg('Sukses Membuat Patch.' + #13 + 'Patch tersimpan di folder : '+ #13 + folderPatch, mtInformation, [mbOK], 0)
+      else
+        MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + #13 + 'Patch tersimpan di folder : '+ #13 + folderPatch, mtInformation, [mbOK], 0)
+
 
 //      Confirmation := MessageDlg('Sukses membuat Patch. Ingin menyimpan Patch?', mtConfirmation, mbYesNo, 0);
 //      if Confirmation = mrYes then
@@ -168,6 +195,11 @@ procedure TFPATCH.bDeleteClick(Sender: TObject);
 begin
   sMemo1.Text := '';
   sMemo2.Text := '';
+end;
+
+procedure TFPATCH.cAutoPatchExit(Sender: TObject);
+begin
+  autoPatch := cautoPatch.Checked;
 end;
 
 procedure TFPATCH.cDBcheckEnter(Sender: TObject);
@@ -284,21 +316,21 @@ begin
   cServer.Text := con1.Server;
   cServer2.Text := con2.Server;
   delimiterNonTables := eDelimiter.Text;
+  autoPatch := cautoPatch.Checked;
 end;
 
 procedure TFPATCH.CreatePatchTable;
 var
-  SourceQuery, CheckQuery, IndexQuery: TMyQuery;
+  SourceQuery, CheckQuery: TMyQuery;
   SourceTables, CheckTables: TStringList;
-  TableName, SourceColumnType, ColumnScript, ColumnName, IndexKey_old, childKeySource, childKeyCheck: string;
-  SourceDB, CheckDB, IndexDB, tableQuery: string;
+  TableName, ColumnName, childKeySource, childKeyCheck: string;
+  SourceDB, CheckDB, tableQuery, QueryText, CurrentQuery: string;
+  StartPos, EndPos: Integer;
 begin
   SourceDB := cDBsource.Text;
-  IndexDB := cDBsource.Text;
   CheckDB := cDBcheck.Text;
 
   SourceQuery := TMyQuery.Create(nil);
-  IndexQuery := TMyQuery.Create(nil);
   CheckQuery := TMyQuery.Create(nil);
   SourceTables := TStringList.Create;
   CheckTables := TStringList.Create;
@@ -331,84 +363,11 @@ begin
       if CheckTables.IndexOf(TableName) = -1 then
       begin
         // Create Table
+        SourceQuery.SQL.Text := 'SHOW CREATE TABLE `' + SourceDB + '`.`' + TableName + '`';
+        SourceQuery.Open;
+
         sMemo1.Lines.Add('DROP TABLE IF EXISTS `' + TableName + '`;');
-        sMemo1.Lines.Add('CREATE TABLE IF NOT EXISTS `' + TableName + '` (');
-        SourceQuery.SQL.Text := 'SELECT COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT, IS_NULLABLE, EXTRA FROM information_schema.columns ' +
-          'WHERE TABLE_SCHEMA = :Database AND TABLE_NAME = :TableName';
-        SourceQuery.ParamByName('Database').AsString := SourceDB;
-        SourceQuery.ParamByName('TableName').AsString := TableName;
-        SourceQuery.Open;
-
-        while not SourceQuery.Eof do
-        begin
-          SourceColumnType := SourceQuery.FieldByName('COLUMN_TYPE').AsString;
-          ColumnName := '`' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '`';
-          ColumnScript := Format('  %s %s', [ColumnName, SourceColumnType]);
-
-          if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-            ColumnScript := ColumnScript + ' NULL'
-          else
-            ColumnScript := ColumnScript + ' NOT NULL';
-
-          if SourceQuery.FieldByName('EXTRA').AsString = 'auto_increment' then
-            ColumnScript := ColumnScript + ' AUTO_INCREMENT'
-          else
-          begin
-            if SourceQuery.FieldByName('COLUMN_DEFAULT').IsNull then
-            begin
-              ColumnScript := ColumnScript + ' DEFAULT NULL'
-            end
-            else
-            begin
-              if SourceQuery.FieldByName('COLUMN_DEFAULT').AsString = '' then
-                ColumnScript := ColumnScript + ' DEFAULT '''
-              else
-                ColumnScript := ColumnScript + Format(' DEFAULT %s', [QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString)]);
-            end;
-          end;
-          sMemo1.Lines.Add(ColumnScript + ',');
-          SourceQuery.Next;
-        end;
-
-        IndexKey_old := '';
-
-        // Create Index in Table
-        SourceQuery.SQL.Text := 'SHOW INDEX FROM ' + TableName + ' IN ' + SourceDB;
-        SourceQuery.Open;
-        SourceQuery.First;
-        while not SourceQuery.Eof do
-        begin
-          IndexQuery.Connection := con1;
-          IndexQuery.SQL.Text := 'SHOW INDEX FROM '+ SourceQuery.FieldByName('Table').AsString + ' IN ' + SourceDB;
-          IndexQuery.Open;
-
-          if SourceQuery.FieldByName('Key_name').AsString <> IndexKey_old then
-          begin
-            if SourceQuery.FieldByName('Key_name').AsString = 'PRIMARY' then
-              sMemo1.Lines.Add('  PRIMARY KEY (`' + SourceQuery.FieldByName('Column_name').AsString + '`) USING BTREE')
-            else
-            begin
-              if SourceQuery.FieldByName('Non_unique').AsInteger = 0 then
-                sMemo1.Lines.Add('  UNIQUE INDEX `' + SourceQuery.FieldByName('Key_name').AsString + '` (' + GetCompositeColumns(IndexQuery, SourceQuery.FieldByName('Key_name').AsString) + ') USING BTREE')
-              else
-                sMemo1.Lines.Add('  INDEX `' + SourceQuery.FieldByName('Key_name').AsString + '` (' + GetCompositeColumns(IndexQuery, SourceQuery.FieldByName('Key_name').AsString) + ') USING BTREE');
-            end;
-          end;
-
-          IndexKey_old := SourceQuery.FieldByName('Key_name').AsString;
-          IndexQuery.Next;
-          SourceQuery.Next;
-
-          if SourceQuery.FieldByName('Key_name').AsString <> IndexKey_old then
-          begin
-            if not SourceQuery.Eof then
-              sMemo1.Lines[sMemo1.Lines.Count - 1] := sMemo1.Lines[sMemo1.Lines.Count - 1] + ',';
-          end;
-        end;
-
-        if sMemo1.Lines.Count > 0 then
-          sMemo1.Lines[sMemo1.Lines.Count - 1] := TrimRight(sMemo1.Lines[sMemo1.Lines.Count - 1]);
-        sMemo1.Lines.Add(');');
+        sMemo1.Lines.Add(SourceQuery.Fields[1].AsString + ';');
       end
       else
       begin
@@ -429,24 +388,40 @@ begin
         while not SourceQuery.Eof do
         begin
           CheckQuery.First;
-          if CheckQuery.Locate('COLUMN_NAME', SourceQuery.FieldByName('COLUMN_NAME').AsString, []) then
+          CheckQuery.Filtered := False;
+          CheckQuery.Filter := 'UPPER(COLUMN_NAME) = ' + QuotedStr(UpperCase(SourceQuery.FieldByName('COLUMN_NAME').AsString));
+          CheckQuery.Filtered := True;
+
+          if not CheckQuery.IsEmpty then
           begin
             // Edit Column
-            if SourceQuery.FieldByName('COLUMN_TYPE').AsString <> CheckQuery.FieldByName('COLUMN_TYPE').AsString then
+            if (SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> CheckQuery.FieldByName('COLUMN_DEFAULT').AsString) OR (SourceQuery.FieldByName('IS_NULLABLE').AsString <> CheckQuery.FieldByName('IS_NULLABLE').AsString) then
             begin
-              sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString +
-                ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ';');
-            end;
-
-            if SourceQuery.FieldByName('IS_NULLABLE').AsString <> CheckQuery.FieldByName('IS_NULLABLE').AsString then
-            begin
-              if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
+              if SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> '' then
               begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ALTER COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` NULL;');
+                if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' +
+                  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
+                end
+                else
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' +
+                  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
+                end;
               end
               else
               begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ALTER COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` NOT NULL;');
+                if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString +
+                  '` ' +  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
+                end
+                else
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString +
+                  '` ' +  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
+                end;
               end;
             end;
           end
@@ -480,8 +455,10 @@ begin
               end;
             end;
           end;
+
           SourceQuery.Next;
         end;
+        CheckQuery.Filtered := False;
 
         SourceQuery.SQL.Text := 'SHOW INDEX FROM '+ TableName + ' IN ' + SourceDB;
         SourceQuery.Open;
@@ -515,10 +492,48 @@ begin
           SourceQuery.Next;
         end;
       end;
+
     end;
+
+    // untuk auto-patch
+    if autoPatch and (sMemo1.Text <> '') then
+    begin
+      QueryText := sMemo1.Text;
+      con2.Database := CheckDB;
+      if not con2.InTransaction then con2.StartTransaction;
+      try
+        while QueryText <> '' do
+        begin
+          EndPos := Pos(';', QueryText);
+          if EndPos > 0 then
+          begin
+            CurrentQuery := Trim(Copy(QueryText, 1, EndPos - 1));
+            Delete(QueryText, 1, EndPos);
+          end
+          else
+          begin
+            CurrentQuery := Trim(QueryText);
+            QueryText := '';
+          end;
+
+          if CurrentQuery <> '' then
+          begin
+            CheckQuery.SQL.Text := CurrentQuery;
+            CheckQuery.Execute;
+          end;
+        end;
+        con2.Commit;
+      except
+        on E: Exception do
+        begin
+          con2.Rollback;
+          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+        end;
+      end;
+    end;
+
   finally
     SourceQuery.Free;
-    IndexQuery.Free;
     CheckQuery.Free;
     SourceTables.Free;
     CheckTables.Free;
@@ -592,7 +607,7 @@ begin
 
   try
     // PATCH PROCEDURE
-    OutputFolder := 'PROCEDURE\';
+    OutputFolder := folderPatch + '\' + 'PROCEDURE\';
     if DirectoryExists(OutputFolder) then
     begin
       RemoveDir(OutputFolder);
@@ -733,7 +748,7 @@ begin
     CheckRoutines.Clear;
 
     // PATCH FUNCTION
-    OutputFolder := 'FUNCTION\';
+    OutputFolder := folderPatch + '\' + 'FUNCTION\';
     if DirectoryExists(OutputFolder) then
     begin
       RemoveDir(OutputFolder);
@@ -887,7 +902,7 @@ var
   SourceQuery, CheckQuery: TMyQuery;
   SourceTrigger, CheckTrigger: TStringList;
   SourceDB, CheckDB, TriggerName, TriggerQuery, OutputFolder: string;
-  PatchFlag: boolean;
+  PatchFlag, nameTriggerSame: boolean;
 begin
   SourceDB := cDBsource.Text;
   CheckDB := cDBcheck.Text;
@@ -898,7 +913,7 @@ begin
   CheckTrigger := TStringList.Create;
 
   try
-    OutputFolder := 'TRIGGER\';
+    OutputFolder := folderPatch + '\' + 'TRIGGER\';
     if DirectoryExists(OutputFolder) then
     begin
       RemoveDir(OutputFolder);
@@ -907,7 +922,7 @@ begin
     else
       CreateDir(OutputFolder);
 
-    TriggerQuery := 'SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = :Database';
+    TriggerQuery := 'SELECT TRIGGER_NAME, ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = :Database';
 
     SourceQuery.Connection := con1;
     SourceQuery.SQL.Text := TriggerQuery;
@@ -915,7 +930,12 @@ begin
     SourceQuery.Open;
     while not SourceQuery.Eof do
     begin
-      SourceTrigger.Add(SourceQuery.Fields[0].AsString);
+      var TriggerInfo: string := Format('%s|%s|%s',
+        [SourceQuery.FieldByName('ACTION_TIMING').AsString,
+         SourceQuery.FieldByName('EVENT_MANIPULATION').AsString,
+         SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString]);
+      SourceTrigger.Add(TriggerInfo);
+
       SourceQuery.Next;
     end;
 
@@ -925,94 +945,114 @@ begin
     CheckQuery.Open;
     while not CheckQuery.Eof do
     begin
-      CheckTrigger.Add(CheckQuery.Fields[0].AsString);
+      var TriggerInfo: string := Format('%s|%s|%s',
+        [CheckQuery.FieldByName('ACTION_TIMING').AsString,
+         CheckQuery.FieldByName('EVENT_MANIPULATION').AsString,
+         CheckQuery.FieldByName('EVENT_OBJECT_TABLE').AsString]);
+      CheckTrigger.Add(TriggerInfo);
+
       CheckQuery.Next;
     end;
 
-//    TriggerQuery := 'SELECT * FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = :Database';
-
     SourceQuery.Connection := con1;
-//    SourceQuery.SQL.Text := TriggerQuery;
-//    SourceQuery.ParamByName('Database').AsString := SourceDB;
-//    SourceQuery.Open;
-
     CheckQuery.Connection := con2;
-//    CheckQuery.SQL.Text := TriggerQuery;
-//    CheckQuery.ParamByName('Database').AsString := CheckDB;
-//    CheckQuery.Open;
 
-    for TriggerName in SourceTrigger do
+//    for RoutinesName in SourceRoutines do
+    for var SourceTriggerIndex := 0 to SourceTrigger.Count - 1 do
     begin
-//      SourceQuery.Filtered := False;
-//      SourceQuery.Filter := 'TRIGGER_NAME = ' + QuotedStr(TriggerName);
-//      SourceQuery.Filtered := True;
-
-//      CheckQuery.Filtered := False;
-//      CheckQuery.Filter := 'TRIGGER_NAME = ' + QuotedStr(TriggerName);
-//      CheckQuery.Filtered := True;
-
       sMemo2.Text := '';
 
-//      if CheckQuery.Fields[2].AsString = '' then
-      if CheckTrigger.IndexOf(TriggerName) = -1 then
+      var SourceTriggerInfo := SourceTrigger[SourceTriggerIndex];
+      // Mencari trigger yang cocok berdasarkan ACTION_TIMING, EVENT_MANIPULATION dan EVENT_OBJECT_TABLE
+      var MatchingTriggerInfo: string := '';
+      for var CheckTriggerInfo in CheckTrigger do
+      begin
+        if SameText(SourceTriggerInfo, CheckTriggerInfo) then
+        begin
+          MatchingTriggerInfo := CheckTriggerInfo;
+          Break;
+        end;
+      end;
+
+      if MatchingTriggerInfo = '' then
       begin
         // Create Trigger
-        SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + TriggerName + '`';
+        SourceQuery.SQL.Text := 'SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE ' +
+        'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
+        SourceQuery.ParamByName('Database').AsString := SourceDB;
+        SourceQuery.ParamByName('Table').AsString := SourceTriggerInfo.Split(['|'])[2];
+        SourceQuery.ParamByName('Time').AsString := SourceTriggerInfo.Split(['|'])[0];
+        SourceQuery.ParamByName('Event').AsString := SourceTriggerInfo.Split(['|'])[1];
+        SourceQuery.Open;
+
+        SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + SourceQuery.Fields[0].AsString + '`';
         SourceQuery.Open;
 
         sMemo2.Lines.Add('/* New Trigger */');
-        sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`' + delimiterNonTables);
-//        sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
-//          SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
-//          ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
-//          SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
+        sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`' + delimiterNonTables);
+        QRunning := 'DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`';
+        AutoPatching;
 
-//        sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
         sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+        QRunning := SourceQuery.Fields[2].AsString;
+        AutoPatching;
       end
       else
       begin
         // Edit Trigger
-        SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + TriggerName + '`';
+        PatchFlag := False;
+        nameTriggerSame := True;
+
+        TriggerQuery := 'SELECT TRIGGER_NAME, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE ' +
+        'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
+
+        SourceQuery.SQL.Text := TriggerQuery;
+        SourceQuery.ParamByName('Database').AsString := SourceDB;
+        SourceQuery.ParamByName('Table').AsString := SourceTriggerInfo.Split(['|'])[2];
+        SourceQuery.ParamByName('Time').AsString := SourceTriggerInfo.Split(['|'])[0];
+        SourceQuery.ParamByName('Event').AsString := SourceTriggerInfo.Split(['|'])[1];
         SourceQuery.Open;
 
-        CheckQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + CheckDB + '`.`' + TriggerName + '`';
+        CheckQuery.SQL.Text := TriggerQuery;
+        CheckQuery.ParamByName('Database').AsString := CheckDB;
+        CheckQuery.ParamByName('Table').AsString := SourceTriggerInfo.Split(['|'])[2];
+        CheckQuery.ParamByName('Time').AsString := SourceTriggerInfo.Split(['|'])[0];
+        CheckQuery.ParamByName('Event').AsString := SourceTriggerInfo.Split(['|'])[1];
         CheckQuery.Open;
 
-        PatchFlag := False;
-
-//        if (SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString) <> (CheckQuery.FieldByName('ACTION_TIMING').AsString + ' ' + CheckQuery.FieldByName('EVENT_MANIPULATION').AsString) then
-//          PatchFlag := True;
-
-//        if SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString <> CheckQuery.FieldByName('EVENT_OBJECT_TABLE').AsString then
-//          PatchFlag := True;
-
-//        if SourceQuery.FieldByName('ACTION_STATEMENT').AsString <> CheckQuery.FieldByName('ACTION_STATEMENT').AsString then
-//          PatchFlag := True;
-
-        if SourceQuery.Fields[2].AsString <> CheckQuery.Fields[2].AsString then
+        if SourceQuery.Fields[1].AsString <> CheckQuery.Fields[1].AsString then
           PatchFlag := True;
 
+        if SourceQuery.Fields[0].AsString <> CheckQuery.Fields[0].AsString then
+          nameTriggerSame := False;
 
-        if PatchFlag = True then
+        if PatchFlag then
         begin
-          sMemo2.Lines.Add('/* Updated Trigger */');
-          sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + TriggerName + '`' + delimiterNonTables);
-//          sMemo2.Lines.Add('CREATE DEFINER=`Fatra`@`%` TRIGGER `' + TriggerName + '` ' +
-//            SourceQuery.FieldByName('ACTION_TIMING').AsString + ' ' + SourceQuery.FieldByName('EVENT_MANIPULATION').AsString +
-//            ' ON `' + SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString + '` FOR EACH ' +
-//            SourceQuery.FieldByName('ACTION_ORIENTATION').AsString);
+          SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + SourceQuery.Fields[0].AsString + '`';
+          SourceQuery.Open;
 
-//          sMemo2.Lines.Add(SourceQuery.FieldByName('ACTION_STATEMENT').AsString + delimiterNonTables);
+          if not nameTriggerSame then
+          begin
+            QRunning := 'DROP TRIGGER IF EXISTS `' + CheckQuery.Fields[0].AsString + '`';
+            AutoPatching;
+          end;
+
+          sMemo2.Lines.Add('/* Updated Trigger */');
+          sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`' + delimiterNonTables);
+          QRunning := 'DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`';
+          AutoPatching;
+
           sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+          QRunning := SourceQuery.Fields[2].AsString;
+          AutoPatching;
         end;
       end;
 
       if sMemo2.Text <> '' then
-        sMemo2.Lines.SaveToFile(OutputFolder + TriggerName + '.txt');
-
+        sMemo2.Lines.SaveToFile(OutputFolder + SourceQuery.Fields[0].AsString + '.txt');
       sMemo2.Text := '';
     end;
+
   finally
     SourceQuery.Free;
     CheckQuery.Free;
@@ -1020,6 +1060,45 @@ begin
     CheckTrigger.Free;
   end;
 end;
+
+procedure TFPATCH.AutoPatching;
+var
+  QueryText: string;
+  StartPos, EndPos: Integer;
+  ExecQuery: TMyQuery;
+begin
+  if autoPatch then
+  begin
+    ExecQuery := TMyQuery.Create(nil);
+    try
+      QueryText := QRunning;
+      con2.Database := cDBcheck.Text;
+      ExecQuery.Connection := con2;
+
+      if not con2.InTransaction then
+        con2.StartTransaction;
+
+      try
+        if QueryText <> '' then
+        begin
+          ExecQuery.SQL.Text := QueryText;
+          ExecQuery.Execute;
+        end;
+
+        con2.Commit;
+      except
+        on E: Exception do
+        begin
+          con2.Rollback;
+          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+        end;
+      end;
+    finally
+      ExecQuery.Free;
+    end;
+  end;
+end;
+
 
 end.
 
