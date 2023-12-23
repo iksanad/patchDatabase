@@ -165,8 +165,23 @@ begin
       sMemo1.Text := '';
 
       CreatePatchTable;
-//      CreatePatchRoutines;
+      CreatePatchRoutines;
       CreatePatchTrigger;
+
+      if autoPatch then
+      begin
+        if not con2.InTransaction then
+          con2.StartTransaction;
+        try
+          con2.Commit;
+        except
+          on E: Exception do
+          begin
+            con2.Rollback;
+            ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+          end;
+        end;
+      end;
 
       sMemo1.Cursor := crDefault;
 
@@ -499,7 +514,6 @@ begin
     begin
       QueryText := sMemo1.Text;
       con2.Database := CheckDB;
-      if not con2.InTransaction then con2.StartTransaction;
       try
         while QueryText <> '' do
         begin
@@ -521,11 +535,11 @@ begin
             CheckQuery.Execute;
           end;
         end;
-        con2.Commit;
+//        con2.Commit;
       except
         on E: Exception do
         begin
-          con2.Rollback;
+//          con2.Rollback;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
         end;
       end;
@@ -589,7 +603,8 @@ end;
 
 procedure TFPATCH.CreatePatchRoutines;
 var
-  SourceQuery, CheckQuery, ParameterQuery, ParameterQuery2: TMyQuery;
+  SourceQuery, CheckQuery: TMyQuery;
+//  ParameterQuery, ParameterQuery2: TMyQuery;
   SourceRoutines, CheckRoutines: TStringList;
   SourceDB, CheckDB, RoutinesName, RoutinesQuery, ParamsQuery, OutputFolder: string;
   patchFlag: boolean;
@@ -598,9 +613,9 @@ begin
   CheckDB := cDBcheck.Text;
 
   SourceQuery := TMyQuery.Create(nil);
-  ParameterQuery := TMyQuery.Create(nil);
+//  ParameterQuery := TMyQuery.Create(nil);
   CheckQuery := TMyQuery.Create(nil);
-  ParameterQuery2 := TMyQuery.Create(nil);
+//  ParameterQuery2 := TMyQuery.Create(nil);
   SourceRoutines := TStringList.Create;
   CheckRoutines := TStringList.Create;
 
@@ -639,101 +654,72 @@ begin
       CheckQuery.Next;
     end;
 
-    RoutinesQuery := 'SELECT * FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = :Database';
-    ParamsQuery := 'SELECT * FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = :Database';
+    // pengecekan paramter procedure
+//    ParamsQuery := 'SELECT * FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = :Database AND ROUTINE_TYPE = :Type';
 
-    SourceQuery.SQL.Text := RoutinesQuery;
-    SourceQuery.ParamByName('Database').AsString := SourceDB;
-    SourceQuery.Open;
+//    ParameterQuery.Connection := con1;
+//    ParameterQuery.SQL.Text := ParamsQuery;
+//    ParameterQuery.ParamByName('Database').AsString := SourceDB;
+//    ParameterQuery.ParamByName('Type').AsString := 'PROCEDURE';
+//    ParameterQuery.Open;
 
-    CheckQuery.SQL.Text := RoutinesQuery;
-    CheckQuery.ParamByName('Database').AsString := CheckDB;
-    CheckQuery.Open;
-
-    ParameterQuery.Connection := con1;
-    ParameterQuery.SQL.Text := ParamsQuery;
-    ParameterQuery.ParamByName('Database').AsString := SourceDB;
-    ParameterQuery.Open;
-
-    ParameterQuery2.Connection := con2;
-    ParameterQuery2.SQL.Text := ParamsQuery;
-    ParameterQuery2.ParamByName('Database').AsString := CheckDB;
-    ParameterQuery2.Open;
+//    ParameterQuery2.Connection := con2;
+//    ParameterQuery2.SQL.Text := ParamsQuery;
+//    ParameterQuery2.ParamByName('Database').AsString := CheckDB;
+//    ParameterQuery2.ParamByName('Type').AsString := 'PROCEDURE';
+//    ParameterQuery2.Open;
 
     for RoutinesName in SourceRoutines do
     begin
       sMemo2.Text := '';
 
-      SourceQuery.Filtered := False;
-      SourceQuery.Filter := 'ROUTINE_NAME = ' + QuotedStr(RoutinesName);
-      SourceQuery.Filtered := True;
-
-      CheckQuery.Filtered := False;
-      CheckQuery.Filter := 'ROUTINE_NAME = ' + QuotedStr(RoutinesName);
-      CheckQuery.Filtered := True;
-
-      ParameterQuery.Filtered := False;
-      ParameterQuery.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-      ParameterQuery.Filtered := True;
-
-      ParameterQuery2.Filtered := False;
-      ParameterQuery2.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-      ParameterQuery2.Filtered := True;
+//      ParameterQuery.Filtered := False;
+//      ParameterQuery.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
+//      ParameterQuery.Filtered := True;
+//      ParameterQuery2.Filtered := False;
+//      ParameterQuery2.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
+//      ParameterQuery2.Filtered := True;
 
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
         // Create Procedure
+        SourceQuery.SQL.Text := 'SHOW CREATE PROCEDURE `' + SourceDB + '`.`' + RoutinesName + '`';
+        SourceQuery.Open;
+
         sMemo2.Lines.Add('/* New Procedure */');
         sMemo2.Lines.Add('DROP PROCEDURE IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
-        sMemo2.Lines.Add('CREATE PROCEDURE `' + RoutinesName + '`(');
-//        sMemo2.Lines.Add(GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName));
+        QRunning := 'DROP PROCEDURE IF EXISTS `' + RoutinesName + '`';
+        AutoPatching;
 
-        ParameterQuery.First;
-        while not ParameterQuery.Eof do
-        begin
-          sMemo2.Lines.Add('  ' + ParameterQuery.FieldByName('PARAMETER_MODE').AsString + ' `' +
-          ParameterQuery.FieldByName('PARAMETER_NAME').AsString + '` ' + ParameterQuery.FieldByName('DATA_TYPE').AsString);
-
-          ParameterQuery.Next;
-
-          if not ParameterQuery.Eof then
-            sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
-        end;
-        sMemo2.Lines.Add(')');
-        sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
-        sMemo2.Lines.Add('');
+        sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+        QRunning := SourceQuery.Fields[2].AsString;
+        AutoPatching;
       end
       else
       begin
         // Edit Procedure
         patchFlag := False;
+        SourceQuery.SQL.Text := 'SHOW CREATE PROCEDURE `' + SourceDB + '`.`' + RoutinesName + '`';
+        SourceQuery.Open;
+        CheckQuery.SQL.Text := 'SHOW CREATE PROCEDURE `' + CheckDB + '`.`' + RoutinesName + '`';
+        CheckQuery.Open;
 
-        if GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName) <> GetCompositeParameters(ParameterQuery2, CheckDB, RoutinesName) then
-          patchFlag := True;
+//        if GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName) <> GetCompositeParameters(ParameterQuery2, CheckDB, RoutinesName) then
+//          patchFlag := True;
 
-        if SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString <> CheckQuery.FieldByName('ROUTINE_DEFINITION').AsString then
+        if SourceQuery.Fields[2].AsString <> CheckQuery.Fields[2].AsString then
           patchFlag := True;
 
         if patchFlag then
         begin
           sMemo2.Lines.Add('/* Updated Procedure */');
           sMemo2.Lines.Add('DROP PROCEDURE IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
-          sMemo2.Lines.Add('CREATE PROCEDURE `' + RoutinesName + '`(');
+          QRunning := 'DROP PROCEDURE IF EXISTS `' + RoutinesName + '`';
+          AutoPatching;
 
-          ParameterQuery.First;
-          while not ParameterQuery.Eof do
-          begin
-            sMemo2.Lines.Add('  ' + ParameterQuery.FieldByName('PARAMETER_MODE').AsString + ' `' +
-            ParameterQuery.FieldByName('PARAMETER_NAME').AsString + '` ' + ParameterQuery.FieldByName('DATA_TYPE').AsString);
-
-            ParameterQuery.Next;
-
-            if not ParameterQuery.Eof then
-              sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
-          end;
-          sMemo2.Lines.Add(')');
-          sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
-          sMemo2.Lines.Add('');
+          sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+          QRunning := SourceQuery.Fields[2].AsString;
+          AutoPatching;
         end;
       end;
 
@@ -781,7 +767,6 @@ begin
     end;
 
     RoutinesQuery := 'SELECT * FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = :Database';
-    ParamsQuery := 'SELECT * FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = :Database';
 
     SourceQuery.SQL.Text := RoutinesQuery;
     SourceQuery.ParamByName('Database').AsString := SourceDB;
@@ -791,93 +776,63 @@ begin
     CheckQuery.ParamByName('Database').AsString := CheckDB;
     CheckQuery.Open;
 
-    ParameterQuery.Connection := con1;
-    ParameterQuery.SQL.Text := ParamsQuery;
-    ParameterQuery.ParamByName('Database').AsString := SourceDB;
-    ParameterQuery.Open;
-
-    ParameterQuery2.Connection := con2;
-    ParameterQuery2.SQL.Text := ParamsQuery;
-    ParameterQuery2.ParamByName('Database').AsString := CheckDB;
-    ParameterQuery2.Open;
+    // pengecekan paramter FUNCTION
+//    ParameterQuery.ParamByName('Type').AsString := 'FUNCTION';
+//    ParameterQuery.Open;
+//    ParameterQuery2.ParamByName('Type').AsString := 'FUNCTION';
+//    ParameterQuery2.Open;
 
     for RoutinesName in SourceRoutines do
     begin
       sMemo2.Text := '';
 
-      SourceQuery.Filtered := False;
-      SourceQuery.Filter := 'ROUTINE_NAME = ' + QuotedStr(RoutinesName);
-      SourceQuery.Filtered := True;
-
-      CheckQuery.Filtered := False;
-      CheckQuery.Filter := 'ROUTINE_NAME = ' + QuotedStr(RoutinesName);
-      CheckQuery.Filtered := True;
-
-      ParameterQuery.Filtered := False;
-      ParameterQuery.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-      ParameterQuery.Filtered := True;
-
-      ParameterQuery2.Filtered := False;
-      ParameterQuery2.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-      ParameterQuery2.Filtered := True;
+//      ParameterQuery.Filtered := False;
+//      ParameterQuery.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
+//      ParameterQuery.Filtered := True;
+//      ParameterQuery2.Filtered := False;
+//      ParameterQuery2.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
+//      ParameterQuery2.Filtered := True;
 
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
         // Create Function
+        SourceQuery.SQL.Text := 'SHOW CREATE FUNCTION `' + SourceDB + '`.`' + RoutinesName + '`';
+        SourceQuery.Open;
+
         sMemo2.Lines.Add('/* New Function */');
         sMemo2.Lines.Add('DROP FUNCTION IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
-        sMemo2.Lines.Add('CREATE FUNCTION `' + RoutinesName + '`(');
-//        sMemo2.Lines.Add(GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName));
+        QRunning := 'DROP FUNCTION IF EXISTS `' + RoutinesName + '`';
+        AutoPatching;
 
-        ParameterQuery.First;
-        while not ParameterQuery.Eof do
-        begin
-          sMemo2.Lines.Add('  `' +
-          ParameterQuery.FieldByName('PARAMETER_NAME').AsString + '` ' + ParameterQuery.FieldByName('DATA_TYPE').AsString);
-
-          ParameterQuery.Next;
-
-          if not ParameterQuery.Eof then
-            sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
-        end;
-        sMemo2.Lines.Add(') RETURNS ' + SourceQuery.FieldByName('DTD_IDENTIFIER').AsString);
-        sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
-        sMemo2.Lines.Add('');
+        sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+        QRunning := SourceQuery.Fields[2].AsString;
+        AutoPatching;
       end
       else
       begin
         // Edit Function
         patchFlag := False;
+        SourceQuery.SQL.Text := 'SHOW CREATE FUNCTION `' + SourceDB + '`.`' + RoutinesName + '`';
+        SourceQuery.Open;
+        CheckQuery.SQL.Text := 'SHOW CREATE FUNCTION `' + SourceDB + '`.`' + RoutinesName + '`';
+        CheckQuery.Open;
 
-        if GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName) <> GetCompositeParameters(ParameterQuery2, CheckDB, RoutinesName) then
-          patchFlag := True;
+//        if GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName) <> GetCompositeParameters(ParameterQuery2, CheckDB, RoutinesName) then
+//          patchFlag := True;
 
-        if SourceQuery.FieldByName('DTD_IDENTIFIER').AsString <> CheckQuery.FieldByName('DTD_IDENTIFIER').AsString then
-          patchFlag := True;
-
-        if SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString <> CheckQuery.FieldByName('ROUTINE_DEFINITION').AsString then
+        if SourceQuery.Fields[2].AsString <> CheckQuery.Fields[2].AsString then
           patchFlag := True;
 
         if patchFlag then
         begin
           sMemo2.Lines.Add('/* Updated Function */');
           sMemo2.Lines.Add('DROP FUNCTION IF EXISTS `' + RoutinesName + '`' + delimiterNonTables);
-          sMemo2.Lines.Add('CREATE FUNCTION `' + RoutinesName + '`(');
+          QRunning := 'DROP FUNCTION IF EXISTS `' + RoutinesName + '`';
+          AutoPatching;
 
-          ParameterQuery.First;
-          while not ParameterQuery.Eof do
-          begin
-            sMemo2.Lines.Add('  `' +
-            ParameterQuery.FieldByName('PARAMETER_NAME').AsString + '` ' + ParameterQuery.FieldByName('DATA_TYPE').AsString);
-
-            ParameterQuery.Next;
-
-            if not ParameterQuery.Eof then
-              sMemo2.Lines[sMemo2.Lines.Count - 1] := sMemo2.Lines[sMemo2.Lines.Count - 1] + ',';
-          end;
-          sMemo2.Lines.Add(') RETURNS ' + SourceQuery.FieldByName('DTD_IDENTIFIER').AsString);
-          sMemo2.Lines.Add(SourceQuery.FieldByName('ROUTINE_DEFINITION').AsString + delimiterNonTables);
-          sMemo2.Lines.Add('');
+          sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+          QRunning := SourceQuery.Fields[2].AsString;
+          AutoPatching;
         end;
       end;
 
@@ -888,9 +843,9 @@ begin
     end;
   finally
     SourceQuery.Free;
-    ParameterQuery.Free;
+//    ParameterQuery.Free;
     CheckQuery.Free;
-    ParameterQuery2.Free;
+//    ParameterQuery2.Free;
     SourceRoutines.Free;
     CheckRoutines.Free;
   end;
@@ -1074,9 +1029,6 @@ begin
       con2.Database := cDBcheck.Text;
       ExecQuery.Connection := con2;
 
-      if not con2.InTransaction then
-        con2.StartTransaction;
-
       try
         if QueryText <> '' then
         begin
@@ -1084,11 +1036,11 @@ begin
           ExecQuery.Execute;
         end;
 
-        con2.Commit;
+//        con2.Commit;
       except
         on E: Exception do
         begin
-          con2.Rollback;
+//          con2.Rollback;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
         end;
       end;

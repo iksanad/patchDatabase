@@ -146,7 +146,7 @@ object FPATCH: TFPATCH
       Caption = 'Create Patch'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
-      Font.Height = -18
+      Font.Height = -20
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
       ParentFont = False
@@ -264,6 +264,8 @@ object FPATCH: TFPATCH
       Text = '|'
       Visible = False
       OnChange = eDelimiterChange
+      ExplicitWidth = 29
+      ExplicitHeight = 36
     end
     object sMemo2: TsMemo
       Left = 39
