@@ -2,8 +2,8 @@ object FPATCH: TFPATCH
   Left = 0
   Top = 0
   Caption = 'Patch Database'
-  ClientHeight = 808
-  ClientWidth = 1018
+  ClientHeight = 805
+  ClientWidth = 1016
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,19 +17,19 @@ object FPATCH: TFPATCH
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 1018
-    Height = 808
+    Width = 1016
+    Height = 805
     Margins.Left = 4
     Margins.Top = 4
     Margins.Right = 4
     Margins.Bottom = 4
     Align = alClient
     TabOrder = 0
-    ExplicitWidth = 1008
-    ExplicitHeight = 805
+    ExplicitWidth = 998
+    ExplicitHeight = 802
     DesignSize = (
-      1018
-      808)
+      1016
+      805)
     object sLabel1: TsLabel
       Left = 18
       Top = 13
@@ -134,7 +134,7 @@ object FPATCH: TFPATCH
       TabOrder = 2
       OnEnter = cDBcheckEnter
     end
-    object bCreatePatch: TsButton
+    object bStartPatch: TsButton
       Left = 560
       Top = 36
       Width = 250
@@ -151,7 +151,7 @@ object FPATCH: TFPATCH
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 3
-      OnClick = bCreatePatchClick
+      OnClick = bStartPatchClick
       AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
       SkinData.CustomColor = True
       SkinData.CustomFont = True
@@ -246,7 +246,7 @@ object FPATCH: TFPATCH
     object eDelimiter: TsEdit
       Left = 959
       Top = -6
-      Width = 39
+      Width = 27
       Height = 39
       Margins.Left = 4
       Margins.Top = 4
@@ -264,7 +264,7 @@ object FPATCH: TFPATCH
       Text = '|'
       Visible = False
       OnChange = eDelimiterChange
-      ExplicitWidth = 29
+      ExplicitWidth = 9
       ExplicitHeight = 36
     end
     object sMemo2: TsMemo

@@ -14,7 +14,7 @@ type
     sMemo1: TsMemo;
     cDBsource: TComboBox;
     cDBcheck: TComboBox;
-    bCreatePatch: TsButton;
+    bStartPatch: TsButton;
     sLabel1: TsLabel;
     sLabel2: TsLabel;
     sLabel3: TsLabel;
@@ -34,7 +34,7 @@ type
     procedure cServerChange(Sender: TObject);
     procedure cDBsourceEnter(Sender: TObject);
     procedure cDBcheckEnter(Sender: TObject);
-    procedure bCreatePatchClick(Sender: TObject);
+    procedure bStartPatchClick(Sender: TObject);
     procedure bCopyClick(Sender: TObject);
     procedure bDeleteClick(Sender: TObject);
     procedure cServer2Exit(Sender: TObject);
@@ -48,8 +48,8 @@ type
     delimiterNonTables, folderPatch, QRunning: string;
     function ConnectDatabase(Server, Database: string): Boolean;
     function GetCompositeColumns(Query: TMyQuery; keyName: string): string;
-    function GetCompositeParameters(Query: TMyQuery; Database, RoutineName: string): string;
     procedure CreatePatchTable;
+    procedure CreatePatchField;
     procedure CreatePatchRoutines;
     procedure CreatePatchTrigger;
     procedure AutoPatching;
@@ -125,7 +125,7 @@ begin
   ShowMessage('Teks berhasil disalin ke clipboard!');
 end;
 
-procedure TFPATCH.bCreatePatchClick(Sender: TObject);
+procedure TFPATCH.bStartPatchClick(Sender: TObject);
 var
   PatchFileName, dateFile: string;
   Confirmation: Integer;
@@ -164,22 +164,22 @@ begin
       sMemo1.Cursor := crAppStart;
       sMemo1.Text := '';
 
-      CreatePatchTable;
-      CreatePatchRoutines;
-      CreatePatchTrigger;
+      if not con2.InTransaction then
+        con2.StartTransaction;
+      try
+        CreatePatchTable;
+        CreatePatchField;
+        CreatePatchRoutines;
+        CreatePatchTrigger;
 
-      if autoPatch then
-      begin
-        if not con2.InTransaction then
-          con2.StartTransaction;
-        try
+        if autoPatch then
           con2.Commit;
-        except
-          on E: Exception do
-          begin
-            con2.Rollback;
-            ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          end;
+      except
+        on E: Exception do
+        begin
+          con2.Rollback;
+          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+          exit;
         end;
       end;
 
@@ -193,14 +193,7 @@ begin
       if not autoPatch then
         MessageDlg('Sukses Membuat Patch.' + #13 + 'Patch tersimpan di folder : '+ #13 + folderPatch, mtInformation, [mbOK], 0)
       else
-        MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + #13 + 'Patch tersimpan di folder : '+ #13 + folderPatch, mtInformation, [mbOK], 0)
-
-
-//      Confirmation := MessageDlg('Sukses membuat Patch. Ingin menyimpan Patch?', mtConfirmation, mbYesNo, 0);
-//      if Confirmation = mrYes then
-//        MessageDlg('Patch disimpan dalam file : ' + PatchFileName, mtInformation, [mbOK], 0)
-//      else
-//        DeleteFile(PatchFileName);
+        MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + #13 + 'Patch tersimpan di folder : '+ #13 + folderPatch, mtInformation, [mbOK], 0);
     end;
   end;
 end;
@@ -535,12 +528,11 @@ begin
             CheckQuery.Execute;
           end;
         end;
-//        con2.Commit;
       except
         on E: Exception do
         begin
-//          con2.Rollback;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+          exit;
         end;
       end;
     end;
@@ -550,41 +542,6 @@ begin
     CheckQuery.Free;
     SourceTables.Free;
     CheckTables.Free;
-  end;
-end;
-
-function TFPATCH.GetCompositeParameters(Query: TMyQuery; Database, RoutineName: string): string;
-var
-  Params: TStringList;
-begin
-  Params := TStringList.Create;
-  try
-    Query.SQL.Text := Query.SQL.Text + ' AND PARAMETER_NAME IS NOT NULL ';
-    Query.Open;
-
-    Query.First;
-    while not Query.Eof do
-    begin
-      if Query.FieldByName('ROUTINE_TYPE').AsString = 'PROCEDURE' then
-      begin
-        Params.Add(Query.FieldByName('PARAMETER_MODE').AsString + ' ' +
-                 '`' + Query.FieldByName('PARAMETER_NAME').AsString + '` ' +
-                 Query.FieldByName('DATA_TYPE').AsString);
-      end;
-
-      if Query.FieldByName('ROUTINE_TYPE').AsString = 'FUNCTION' then
-      begin
-        Params.Add('`' + Query.FieldByName('PARAMETER_NAME').AsString + '` ' +
-                 Query.FieldByName('DATA_TYPE').AsString);
-      end;
-
-      Query.Next;
-    end;
-
-    // Hapus tanda kutip ganda tambahan dari definisi parameter
-    Result := StringReplace(Params.DelimitedText, '"', '', [rfReplaceAll]);
-  finally
-    Params.Free;
   end;
 end;
 
@@ -604,7 +561,6 @@ end;
 procedure TFPATCH.CreatePatchRoutines;
 var
   SourceQuery, CheckQuery: TMyQuery;
-//  ParameterQuery, ParameterQuery2: TMyQuery;
   SourceRoutines, CheckRoutines: TStringList;
   SourceDB, CheckDB, RoutinesName, RoutinesQuery, ParamsQuery, OutputFolder: string;
   patchFlag: boolean;
@@ -613,9 +569,7 @@ begin
   CheckDB := cDBcheck.Text;
 
   SourceQuery := TMyQuery.Create(nil);
-//  ParameterQuery := TMyQuery.Create(nil);
   CheckQuery := TMyQuery.Create(nil);
-//  ParameterQuery2 := TMyQuery.Create(nil);
   SourceRoutines := TStringList.Create;
   CheckRoutines := TStringList.Create;
 
@@ -654,31 +608,9 @@ begin
       CheckQuery.Next;
     end;
 
-    // pengecekan paramter procedure
-//    ParamsQuery := 'SELECT * FROM information_schema.PARAMETERS WHERE SPECIFIC_SCHEMA = :Database AND ROUTINE_TYPE = :Type';
-
-//    ParameterQuery.Connection := con1;
-//    ParameterQuery.SQL.Text := ParamsQuery;
-//    ParameterQuery.ParamByName('Database').AsString := SourceDB;
-//    ParameterQuery.ParamByName('Type').AsString := 'PROCEDURE';
-//    ParameterQuery.Open;
-
-//    ParameterQuery2.Connection := con2;
-//    ParameterQuery2.SQL.Text := ParamsQuery;
-//    ParameterQuery2.ParamByName('Database').AsString := CheckDB;
-//    ParameterQuery2.ParamByName('Type').AsString := 'PROCEDURE';
-//    ParameterQuery2.Open;
-
     for RoutinesName in SourceRoutines do
     begin
       sMemo2.Text := '';
-
-//      ParameterQuery.Filtered := False;
-//      ParameterQuery.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-//      ParameterQuery.Filtered := True;
-//      ParameterQuery2.Filtered := False;
-//      ParameterQuery2.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-//      ParameterQuery2.Filtered := True;
 
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
@@ -703,9 +635,6 @@ begin
         SourceQuery.Open;
         CheckQuery.SQL.Text := 'SHOW CREATE PROCEDURE `' + CheckDB + '`.`' + RoutinesName + '`';
         CheckQuery.Open;
-
-//        if GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName) <> GetCompositeParameters(ParameterQuery2, CheckDB, RoutinesName) then
-//          patchFlag := True;
 
         if SourceQuery.Fields[2].AsString <> CheckQuery.Fields[2].AsString then
           patchFlag := True;
@@ -776,22 +705,9 @@ begin
     CheckQuery.ParamByName('Database').AsString := CheckDB;
     CheckQuery.Open;
 
-    // pengecekan paramter FUNCTION
-//    ParameterQuery.ParamByName('Type').AsString := 'FUNCTION';
-//    ParameterQuery.Open;
-//    ParameterQuery2.ParamByName('Type').AsString := 'FUNCTION';
-//    ParameterQuery2.Open;
-
     for RoutinesName in SourceRoutines do
     begin
       sMemo2.Text := '';
-
-//      ParameterQuery.Filtered := False;
-//      ParameterQuery.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-//      ParameterQuery.Filtered := True;
-//      ParameterQuery2.Filtered := False;
-//      ParameterQuery2.Filter := 'SPECIFIC_NAME = ' + QuotedStr(RoutinesName);
-//      ParameterQuery2.Filtered := True;
 
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
@@ -817,9 +733,6 @@ begin
         CheckQuery.SQL.Text := 'SHOW CREATE FUNCTION `' + SourceDB + '`.`' + RoutinesName + '`';
         CheckQuery.Open;
 
-//        if GetCompositeParameters(ParameterQuery, SourceDB, RoutinesName) <> GetCompositeParameters(ParameterQuery2, CheckDB, RoutinesName) then
-//          patchFlag := True;
-
         if SourceQuery.Fields[2].AsString <> CheckQuery.Fields[2].AsString then
           patchFlag := True;
 
@@ -843,9 +756,7 @@ begin
     end;
   finally
     SourceQuery.Free;
-//    ParameterQuery.Free;
     CheckQuery.Free;
-//    ParameterQuery2.Free;
     SourceRoutines.Free;
     CheckRoutines.Free;
   end;
@@ -907,9 +818,6 @@ begin
 
       CheckQuery.Next;
     end;
-
-    SourceQuery.Connection := con1;
-    CheckQuery.Connection := con2;
 
 //    for RoutinesName in SourceRoutines do
     for var SourceTriggerIndex := 0 to SourceTrigger.Count - 1 do
@@ -1035,13 +943,11 @@ begin
           ExecQuery.SQL.Text := QueryText;
           ExecQuery.Execute;
         end;
-
-//        con2.Commit;
       except
         on E: Exception do
         begin
-//          con2.Rollback;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+          exit;
         end;
       end;
     finally
@@ -1050,6 +956,181 @@ begin
   end;
 end;
 
+procedure TFPATCH.CreatePatchField;
+var
+  SourceQuery, CheckQuery: TMyQuery;
+  SourceDB, CheckDB, TableName: string;
+  PatchFlag, hasChanges: boolean;
+  QueryText, CurrentQuery: string;
+  StartPos, EndPos: Integer;
+begin
+  SourceDB := cDBsource.Text;
+  CheckDB := cDBcheck.Text;
+
+  SourceQuery := TMyQuery.Create(nil);
+  CheckQuery := TMyQuery.Create(nil);
+
+  try
+    sMemo2.Text := '';
+
+    SourceQuery.Connection := con1;
+    CheckQuery.Connection := con2;
+
+    var TablesToCheck: TArray<string> := ['erp_table', 'erp_menu', 'erp_lookup_set', 'erp_lookup_value'];
+
+    for TableName in TablesToCheck do
+    begin
+      if TableName = 'erp_lookup_value' then
+      begin
+        SourceQuery.SQL.Text := 'SELECT * FROM `' + SourceDB + '`.`' + TableName + '` WHERE ERP_LOOKUP_SET_ID NOT IN (48, 49, 52, 53, 54, 55)';
+        CheckQuery.SQL.Text := 'SELECT * FROM `' + CheckDB + '`.`' + TableName + '` WHERE ERP_LOOKUP_SET_ID NOT IN (48, 49, 52, 53, 54, 55)';
+      end
+      else
+      begin
+        SourceQuery.SQL.Text := 'SELECT * FROM `' + SourceDB + '`.`' + TableName + '`';
+        CheckQuery.SQL.Text := 'SELECT * FROM `' + CheckDB + '`.`' + TableName + '`';
+      end;
+      SourceQuery.Open;
+      CheckQuery.Open;
+
+      while not SourceQuery.EOF do
+      begin
+        var nama_table_idValue := SourceQuery.FieldByName(UpperCase(TableName) + '_ID').AsString;
+
+        if not CheckQuery.Locate(UpperCase(TableName) + '_ID', nama_table_idValue, []) then
+        begin
+          // INSERT
+          sMemo2.Lines.Add('DELETE FROM `' + TableName + '` WHERE `' + UpperCase(TableName) + '_ID`=' + nama_table_idValue + ';');
+
+          var InsertStatement: string := 'INSERT INTO `' + TableName + '` (';
+          var ValuesStatement: string := 'VALUES (';
+
+          for var j := 0 to SourceQuery.FieldCount - 1 do
+          begin
+            var vfieldName := SourceQuery.Fields[j].FieldName;
+            var vfieldValue := SourceQuery.FieldByName(vfieldName).Value;
+
+            InsertStatement := InsertStatement + '`' + vfieldName + '`,';
+
+            if vfieldValue = Null then
+              ValuesStatement := ValuesStatement + 'NULL,'
+            else
+            if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
+              ValuesStatement := ValuesStatement + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
+            else
+              ValuesStatement := ValuesStatement + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
+          end;
+
+          // Hapus koma terakhir
+          Delete(InsertStatement, Length(InsertStatement), 1);
+          Delete(ValuesStatement, Length(ValuesStatement), 1);
+
+          InsertStatement := InsertStatement + ') ' + ValuesStatement + ');';
+          sMemo2.Lines.Add(InsertStatement);
+        end
+        else
+        begin
+          // UPDATE
+          if TableName <> 'erp_menu' then
+          begin
+            hasChanges := False;
+            var updateStatement := 'UPDATE `' + TableName + '` SET ';
+
+            for var j := 0 to SourceQuery.FieldCount - 1 do
+            begin
+              var vfieldName := SourceQuery.Fields[j].FieldName;
+
+              if CheckQuery.FieldByName(vfieldName) <> nil then
+              begin
+                var vsourceValue := SourceQuery.FieldByName(vfieldName).Value;
+                var vcheckValue := CheckQuery.FieldByName(vfieldName).Value;
+
+                if VarIsNull(vsourceValue) then
+                begin
+                  if not VarIsNull(vcheckValue) then
+                    hasChanges := True;
+                end
+                else
+                begin
+                  if (VarToStrDef(vsourceValue, '') <> VarToStrDef(vcheckValue, '')) AND (vfieldName <> 'SEQ_ID') then
+                    hasChanges := True;
+                end;
+
+                if hasChanges AND (vfieldName <> 'SEQ_ID') then
+                begin
+                  // Tambahkan kolom ke pernyataan UPDATE
+                  if VarIsNull(vsourceValue) then
+                    updateStatement := updateStatement + '`' + vfieldName + '` = NULL,'
+                  else
+                  if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
+                    updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
+                  else
+                    updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
+                end;
+              end
+              else
+                updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
+            end;
+
+            if hasChanges then
+            begin
+              // Hapus koma terakhir
+              updateStatement := Copy(updateStatement, 1, Length(updateStatement) - 1);
+
+              updateStatement := updateStatement + ' WHERE `' + UpperCase(TableName) + '_ID` = ' + nama_table_idValue + ';';
+              sMemo2.Lines.Add(updateStatement);
+            end;
+          end;
+        end;
+
+        SourceQuery.Next;
+      end;
+    end;
+
+    sMemo1.lines.Add(sMemo2.Text);
+
+    // untuk auto-patch
+    if autoPatch and (sMemo2.Text <> '') then
+    begin
+      QueryText := sMemo2.Text;
+      con2.Database := CheckDB;
+      try
+        while QueryText <> '' do
+        begin
+          EndPos := Pos(';', QueryText);
+          if EndPos > 0 then
+          begin
+            CurrentQuery := Trim(Copy(QueryText, 1, EndPos - 1));
+            Delete(QueryText, 1, EndPos);
+          end
+          else
+          begin
+            CurrentQuery := Trim(QueryText);
+            QueryText := '';
+          end;
+
+          if CurrentQuery <> '' then
+          begin
+            CheckQuery.SQL.Text := CurrentQuery;
+            CheckQuery.Execute;
+          end;
+        end;
+      except
+        on E: Exception do
+        begin
+          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+          exit;
+        end;
+      end;
+    end;
+
+    sMemo2.Text := '';
+  finally
+    SourceQuery.Free;
+    CheckQuery.Free;
+  end;
+end;
 
 end.
+
 
