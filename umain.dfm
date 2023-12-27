@@ -25,7 +25,7 @@ object FPATCH: TFPATCH
     Margins.Bottom = 4
     Align = alClient
     TabOrder = 0
-    ExplicitWidth = 998
+    ExplicitWidth = 1006
     ExplicitHeight = 802
     DesignSize = (
       1016
@@ -264,7 +264,7 @@ object FPATCH: TFPATCH
       Text = '|'
       Visible = False
       OnChange = eDelimiterChange
-      ExplicitWidth = 9
+      ExplicitWidth = 17
       ExplicitHeight = 36
     end
     object sMemo2: TsMemo

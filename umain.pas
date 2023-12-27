@@ -53,6 +53,7 @@ type
     procedure CreatePatchRoutines;
     procedure CreatePatchTrigger;
     procedure AutoPatching;
+    procedure gagalPatch;
   public
     { Public declarations }
   end;
@@ -169,8 +170,8 @@ begin
       try
         CreatePatchTable;
         CreatePatchField;
-        CreatePatchRoutines;
-        CreatePatchTrigger;
+//        CreatePatchRoutines;
+//        CreatePatchTrigger;
 
         if autoPatch then
           con2.Commit;
@@ -329,8 +330,8 @@ end;
 procedure TFPATCH.CreatePatchTable;
 var
   SourceQuery, CheckQuery: TMyQuery;
-  SourceTables, CheckTables: TStringList;
-  TableName, ColumnName, childKeySource, childKeyCheck: string;
+  SourceTables, CheckTables, SourceIndexes, CheckIndexes: TStringList;
+  TableName, IndexName, ColumnName, childKeySource, childKeyCheck: string;
   SourceDB, CheckDB, tableQuery, QueryText, CurrentQuery: string;
   StartPos, EndPos: Integer;
 begin
@@ -343,7 +344,7 @@ begin
   CheckTables := TStringList.Create;
 
   try
-    tableQuery := 'SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = :Database';
+    tableQuery := 'SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_TYPE = ' + QuotedStr('BASE TABLE') + ' AND TABLE_SCHEMA = :Database';
 
     SourceQuery.Connection := con1;
     SourceQuery.SQL.Text := tableQuery;
@@ -467,39 +468,86 @@ begin
         end;
         CheckQuery.Filtered := False;
 
-        SourceQuery.SQL.Text := 'SHOW INDEX FROM '+ TableName + ' IN ' + SourceDB;
+        SourceQuery.SQL.Text := 'SHOW INDEX FROM ' + TableName + ' IN ' + SourceDB;
         SourceQuery.Open;
 
-        CheckQuery.SQL.Text := 'SHOW INDEX FROM '+ TableName + ' IN ' + CheckDB;
+        CheckQuery.SQL.Text := 'SHOW INDEX FROM ' + TableName + ' IN ' + CheckDB;
         CheckQuery.Open;
 
-        SourceQuery.First;
-        while not SourceQuery.Eof do
-        begin
+        CheckIndexes := TStringList.Create;
+        SourceIndexes := TStringList.Create;
+        try
           CheckQuery.First;
-          if CheckQuery.Locate('Key_name', SourceQuery.FieldByName('Key_name').AsString, []) then
+          while not CheckQuery.Eof do
           begin
-            // Edit Index
-            childKeySource := GetCompositeColumns(SourceQuery, SourceQuery.FieldByName('Key_name').AsString);
-            childKeyCheck := GetCompositeColumns(CheckQuery, CheckQuery.FieldByName('Key_name').AsString);
-
-            if (childKeySource <> childKeyCheck) then
-            begin
-              sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + SourceQuery.FieldByName('Key_name').AsString +
-              '`, ADD INDEX `' + SourceQuery.FieldByName('Key_name').AsString + '` (' + GetCompositeColumns(SourceQuery, SourceQuery.FieldByName('Key_name').AsString) + ') USING BTREE;');
-            end;
-          end
-          else
-          begin
-            // Add Index
-            sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD INDEX `' + SourceQuery.FieldByName('Key_name').AsString +
-            '` (' + GetCompositeColumns(SourceQuery, SourceQuery.FieldByName('Key_name').AsString) + ') USING BTREE;');
+            var keyName := CheckQuery.FieldByName('Key_name').AsString;
+            if CheckIndexes.IndexOf(keyName) = -1 then
+              CheckIndexes.Add(keyName);
+            CheckQuery.Next;
           end;
 
-          SourceQuery.Next;
+          SourceQuery.First;
+          while not SourceQuery.Eof do
+          begin
+            var keyName := SourceQuery.FieldByName('Key_name').AsString;
+            if SourceIndexes.IndexOf(keyName) = -1 then
+              SourceIndexes.Add(keyName);
+            SourceQuery.Next;
+          end;
+
+          for IndexName in SourceIndexes do
+          begin
+            if CheckIndexes.IndexOf(IndexName) = -1 then
+            begin
+              // Add Index
+              if IndexName = 'PRIMARY' then
+              begin
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' +
+                GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+              end
+              else
+              begin
+                if SourceQuery.FieldByName('Non_unique').AsString = '0' then
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName +
+                  '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                end
+                else
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD INDEX `' + IndexName +
+                  '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                end;
+              end;
+            end
+            else
+            begin
+              // Edit Index
+              childKeySource := GetCompositeColumns(SourceQuery, IndexName);
+              childKeyCheck := GetCompositeColumns(CheckQuery, IndexName);
+
+              if (childKeySource <> childKeyCheck) AND (childKeyCheck <> '') then
+              begin
+                if IndexName <> 'PRIMARY' then
+                begin
+                  if SourceQuery.FieldByName('Non_unique').AsString = '0' then
+                  begin
+                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName +
+                      '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                  end
+                  else
+                  begin
+                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName +
+                      '`, ADD INDEX `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                  end;
+                end;
+              end;
+            end;
+          end;
+        finally
+          SourceIndexes.Free;
+          CheckIndexes.Free;
         end;
       end;
-
     end;
 
     // untuk auto-patch
@@ -507,6 +555,8 @@ begin
     begin
       QueryText := sMemo1.Text;
       con2.Database := CheckDB;
+      if not con2.InTransaction then
+        con2.StartTransaction;
       try
         while QueryText <> '' do
         begin
@@ -532,7 +582,7 @@ begin
         on E: Exception do
         begin
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          exit;
+          gagalPatch;
         end;
       end;
     end;
@@ -947,7 +997,7 @@ begin
         on E: Exception do
         begin
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          exit;
+          gagalPatch;
         end;
       end;
     finally
@@ -1094,6 +1144,8 @@ begin
     begin
       QueryText := sMemo2.Text;
       con2.Database := CheckDB;
+      if not con2.InTransaction then
+        con2.StartTransaction;
       try
         while QueryText <> '' do
         begin
@@ -1119,7 +1171,7 @@ begin
         on E: Exception do
         begin
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          exit;
+          gagalPatch;
         end;
       end;
     end;
@@ -1129,6 +1181,13 @@ begin
     SourceQuery.Free;
     CheckQuery.Free;
   end;
+end;
+
+procedure TFPATCH.gagalPatch;
+begin
+  con2.Rollback;
+  sMemo1.Cursor := crDefault;
+  abort;
 end;
 
 end.
