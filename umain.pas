@@ -53,7 +53,6 @@ type
     procedure CreatePatchRoutines;
     procedure CreatePatchTrigger;
     procedure AutoPatching;
-    procedure gagalPatch;
   public
     { Public declarations }
   end;
@@ -170,8 +169,8 @@ begin
       try
         CreatePatchTable;
         CreatePatchField;
-//        CreatePatchRoutines;
-//        CreatePatchTrigger;
+        CreatePatchRoutines;
+        CreatePatchTrigger;
 
         if autoPatch then
           con2.Commit;
@@ -581,8 +580,9 @@ begin
       except
         on E: Exception do
         begin
+          con2.Rollback;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          gagalPatch;
+          exit;
         end;
       end;
     end;
@@ -996,8 +996,9 @@ begin
       except
         on E: Exception do
         begin
+          con2.Rollback;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          gagalPatch;
+          exit;
         end;
       end;
     finally
@@ -1170,8 +1171,9 @@ begin
       except
         on E: Exception do
         begin
+          con2.Rollback;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          gagalPatch;
+          exit;
         end;
       end;
     end;
@@ -1181,13 +1183,6 @@ begin
     SourceQuery.Free;
     CheckQuery.Free;
   end;
-end;
-
-procedure TFPATCH.gagalPatch;
-begin
-  con2.Rollback;
-  sMemo1.Cursor := crDefault;
-  abort;
 end;
 
 end.
