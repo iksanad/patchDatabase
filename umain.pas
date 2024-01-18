@@ -245,8 +245,8 @@ begin
       try
         CreatePatchTable;
         CreatePatchField;
-//        CreatePatchRoutines;
-//        CreatePatchTrigger;
+        CreatePatchRoutines;
+        CreatePatchTrigger;
 
         if autoPatch then
           con2.Commit;
