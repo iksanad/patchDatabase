@@ -25,10 +25,21 @@ type
     sLabel4: TsLabel;
     bDelete: TsButton;
     con2: TMyConnection;
-    eDelimiter: TsEdit;
     sMemo2: TsMemo;
     cAutoPatch: TsCheckBox;
     bExit: TsButton;
+    bSetting: TsButton;
+    sLabel7: TsLabel;
+    cPassSource: TsEdit;
+    sLabel8: TsLabel;
+    cPassCheck: TsEdit;
+    eDelimiter: TsEdit;
+    cUserCheck: TsEdit;
+    cUserSource: TsEdit;
+    sLabel5: TsLabel;
+    cPortSource: TsEdit;
+    sLabel6: TsLabel;
+    cPortCheck: TsEdit;
     procedure FormCreate(Sender: TObject);
     procedure cServerExit(Sender: TObject);
     procedure cServerChange(Sender: TObject);
@@ -42,9 +53,10 @@ type
     procedure eDelimiterChange(Sender: TObject);
     procedure cAutoPatchExit(Sender: TObject);
     procedure bExitClick(Sender: TObject);
+    procedure bSettingClick(Sender: TObject);
   private
     { Private declarations }
-    autoPatch: boolean;
+    autoPatch, openSetting: boolean;
     delimiterNonTables, folderPatch, QRunning: string;
     function ConnectDatabase(Server, Database: string): Boolean;
     function GetCompositeColumns(Query: TMyQuery; keyName: string): string;
@@ -70,6 +82,9 @@ begin
   begin
     try
       con1.Server := Server;
+      con1.Username := cUserSource.Text;
+      con1.Password := cPassSource.Text;
+      con1.Port := StrToInt(cPortSource.Text);
       con1.Database := 'Test';
       con1.Connect;
       Result := con1.Connected;
@@ -82,6 +97,9 @@ begin
   begin
     try
       con2.Server := Server;
+      con2.Username := cUserCheck.Text;
+      con2.Password := cPassCheck.Text;
+      con2.Port := StrToInt(cPortCheck.Text);
       con2.Database := 'Test';
       con2.Connect;
       Result := con2.Connected;
@@ -123,6 +141,64 @@ procedure TFPATCH.bCopyClick(Sender: TObject);
 begin
   Clipboard.AsText := sMemo1.Lines.Text;
   ShowMessage('Teks berhasil disalin ke clipboard!');
+end;
+
+procedure TFPATCH.bSettingClick(Sender: TObject);
+begin
+  if openSetting = False then
+  begin
+    self.Height := 925;
+    self.Top := (screen.Height - self.Height) div 2;
+    sMemo1.Top := smemo1.Top + 40;
+    bStartPatch.Visible := False;
+    cAutoPatch.Visible := False;
+    bSetting.Top := 160;
+    bCopy.Top := 160;
+    bDelete.Top := 160;
+    slabel2.Caption := 'USERNAME SERVER 1';
+    slabel3.Caption := 'USERNAME SERVER 2';
+    cDBsource.Visible := False;
+    cDBcheck.Visible := False;
+    cUserSource.Visible := True;
+    cUserCheck.Visible := True;
+    sLabel7.Visible := True;
+    sLabel8.Visible := True;
+    cPassSource.Visible := True;
+    cPassCheck.Visible := True;
+    sLabel5.Visible := True;
+    sLabel6.Visible := True;
+    cPortSource.Visible := True;
+    cPortCheck.Visible := True;
+    bSetting.Caption := 'Close Setting';
+    openSetting := True;
+  end
+  else
+  begin
+    self.Height := 885;
+    self.Top := (screen.Height - self.Height) div 2;
+    sMemo1.Top := smemo1.Top - 40;
+    bStartPatch.Visible := True;
+    cAutoPatch.Visible := True;
+    bSetting.Top := 106;
+    bCopy.Top := 106;
+    bDelete.Top := 106;
+    slabel2.Caption := 'DATABASE SUMBER';
+    slabel3.Caption := 'DATABASE TUJUAN';
+    cDBsource.Visible := True;
+    cDBcheck.Visible := True;
+    cUserSource.Visible := False;
+    cUserCheck.Visible := False;
+    sLabel7.Visible := False;
+    sLabel8.Visible := False;
+    cPassSource.Visible := False;
+    cPassCheck.Visible := False;
+    sLabel5.Visible := False;
+    sLabel6.Visible := False;
+    cPortSource.Visible := False;
+    cPortCheck.Visible := False;
+    bSetting.Caption := 'Setting Server';
+    openSetting := False;
+  end;
 end;
 
 procedure TFPATCH.bStartPatchClick(Sender: TObject);
@@ -169,8 +245,8 @@ begin
       try
         CreatePatchTable;
         CreatePatchField;
-        CreatePatchRoutines;
-        CreatePatchTrigger;
+//        CreatePatchRoutines;
+//        CreatePatchTrigger;
 
         if autoPatch then
           con2.Commit;
@@ -191,9 +267,9 @@ begin
       end;
 
       if not autoPatch then
-        MessageDlg('Sukses Membuat Patch.' + #13 + 'Patch tersimpan di folder : '+ #13 + folderPatch, mtInformation, [mbOK], 0)
+        MessageDlg('Sukses Membuat Patch.' + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0)
       else
-        MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + #13 + 'Patch tersimpan di folder : '+ #13 + folderPatch, mtInformation, [mbOK], 0);
+        MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0);
     end;
   end;
 end;
@@ -211,17 +287,17 @@ end;
 
 procedure TFPATCH.cDBcheckEnter(Sender: TObject);
 var
-  TempQuery:TMyQuery;
+  TempQuery: TMyQuery;
 begin
-  TempQuery:=TMyQuery.Create(self);
-  if cServer2.Text<>'' then
+  TempQuery := TMyQuery.Create(self);
+  if cServer2.Text <> '' then
   begin
     if (cDBcheck.Text = '') then
     begin
-      if ConnectDatabase(cServer2.Text,'con2') then
+      if ConnectDatabase(cServer2.Text, 'con2') then
       begin
-        TempQuery.Connection:=con2;
-        TempQuery.SQL.Text:='SHOW DATABASES';
+        TempQuery.Connection := con2;
+        TempQuery.SQL.Text := 'SHOW DATABASES';
         TempQuery.Open;
         cDBcheck.Items.Clear;
         while not TempQuery.Eof do
@@ -229,18 +305,19 @@ begin
           cDBcheck.Items.Append(TempQuery.Fields[0].AsString);
           TempQuery.Next;
         end;
-        cDBcheck.ItemIndex:=0;
+        cDBcheck.ItemIndex := 0;
       end
       else
       begin
-        MessageDlg('Server Tidak ada!',mtWarning,[MBOK],0);
+        MessageDlg('Server Tidak ada atau Setting salah!', mtWarning, [MBOK], 0);
         cServer2.SetFocus;
       end;
       FreeAndNil(TempQuery);
     end;
-  end else
+  end
+  else
   begin
-    MessageDlg('Isi Nama Server dulu!',mtWarning,[MBOK],0);
+    MessageDlg('Isi Nama Server dulu!', mtWarning, [MBOK], 0);
     cServer2.SetFocus;
     exit;
   end;
@@ -248,17 +325,17 @@ end;
 
 procedure TFPATCH.cDBsourceEnter(Sender: TObject);
 var
-    TempQuery:TMyQuery;
+  TempQuery: TMyQuery;
 begin
-  TempQuery:=TMyQuery.Create(self);
-  if cServer.Text<>'' then
+  TempQuery := TMyQuery.Create(self);
+  if cServer.Text <> '' then
   begin
     if (cDBsource.Text = '') then
     begin
-      if ConnectDatabase(cServer.Text,'con1') then
+      if ConnectDatabase(cServer.Text, 'con1') then
       begin
-        TempQuery.Connection:=con1;
-        TempQuery.SQL.Text:='SHOW DATABASES';
+        TempQuery.Connection := con1;
+        TempQuery.SQL.Text := 'SHOW DATABASES';
         TempQuery.Open;
         cDBsource.Items.Clear;
         while not TempQuery.Eof do
@@ -266,11 +343,11 @@ begin
           cDBsource.Items.Append(TempQuery.Fields[0].AsString);
           TempQuery.Next;
         end;
-        cDBsource.ItemIndex:=0;
+        cDBsource.ItemIndex := 0;
       end
       else
       begin
-        MessageDlg('Server Tidak ada!',mtWarning,[MBOK],0);
+        MessageDlg('Server Tidak ada atau Setting salah!', mtWarning, [MBOK], 0);
         cServer.SetFocus;
       end;
       FreeAndNil(TempQuery);
@@ -278,7 +355,7 @@ begin
   end
   else
   begin
-    MessageDlg('Isi Nama Server dulu!',mtWarning,[MBOK],0);
+    MessageDlg('Isi Nama Server dulu!', mtWarning, [MBOK], 0);
     cServer.SetFocus;
     exit;
   end;
@@ -291,6 +368,7 @@ end;
 
 procedure TFPATCH.cServer2Exit(Sender: TObject);
 begin
+{
   if con2.Server <> cServer2.Text then
   begin
     if con2.Connected then
@@ -299,6 +377,7 @@ begin
     con2.Server := cServer2.Text;
     con2.Connected := True;
   end;
+}
 end;
 
 procedure TFPATCH.cServerChange(Sender: TObject);
@@ -308,6 +387,7 @@ end;
 
 procedure TFPATCH.cServerExit(Sender: TObject);
 begin
+{
   if con1.Server <> cServer.Text then
   begin
     if con1.Connected then
@@ -316,14 +396,22 @@ begin
     con1.Server := cServer.Text;
     con1.Connected := True;
   end;
+}
 end;
 
 procedure TFPATCH.FormCreate(Sender: TObject);
 begin
   cServer.Text := con1.Server;
+  cUserSource.Text := con1.Username;
+  cPassSource.Text := con1.Password;
+  cPortSource.Text := IntToStr(con1.Port);
   cServer2.Text := con2.Server;
+  cUserCheck.Text := con2.Username;
+  cPassCheck.Text := con2.Password;
+  cPortCheck.Text := IntToStr(con2.Port);
   delimiterNonTables := eDelimiter.Text;
   autoPatch := cautoPatch.Checked;
+  openSetting := False;
 end;
 
 procedure TFPATCH.CreatePatchTable;
@@ -379,8 +467,7 @@ begin
       else
       begin
         // Edit Column & Index in Table
-        tableQuery := 'SELECT COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.columns ' +
-          'WHERE TABLE_SCHEMA = :Database AND TABLE_NAME = :TableName';
+        tableQuery := 'SELECT COLUMN_NAME, COLUMN_TYPE, COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.columns ' + 'WHERE TABLE_SCHEMA = :Database AND TABLE_NAME = :TableName';
 
         SourceQuery.SQL.Text := tableQuery;
         SourceQuery.ParamByName('Database').AsString := SourceDB;
@@ -402,32 +489,28 @@ begin
           if not CheckQuery.IsEmpty then
           begin
             // Edit Column
-            if (SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> CheckQuery.FieldByName('COLUMN_DEFAULT').AsString) OR (SourceQuery.FieldByName('IS_NULLABLE').AsString <> CheckQuery.FieldByName('IS_NULLABLE').AsString) then
+            if (SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> CheckQuery.FieldByName('COLUMN_DEFAULT').AsString) or (SourceQuery.FieldByName('IS_NULLABLE').AsString <> CheckQuery.FieldByName('IS_NULLABLE').AsString) then
             begin
               if SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> '' then
               begin
                 if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
                 begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' +
-                  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
                 end
                 else
                 begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' +
-                  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
                 end;
               end
               else
               begin
                 if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
                 begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString +
-                  '` ' +  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
                 end
                 else
                 begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString +
-                  '` ' +  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
                 end;
               end;
             end;
@@ -439,26 +522,22 @@ begin
             begin
               if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
               begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' +
-                SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
               end
               else
               begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' +
-                SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
               end;
             end
             else
             begin
               if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
               begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString +
-                '` ' +  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
               end
               else
               begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString +
-                '` ' +  SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
               end;
             end;
           end;
@@ -501,20 +580,17 @@ begin
               // Add Index
               if IndexName = 'PRIMARY' then
               begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' +
-                GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
               end
               else
               begin
                 if SourceQuery.FieldByName('Non_unique').AsString = '0' then
                 begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName +
-                  '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
                 end
                 else
                 begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD INDEX `' + IndexName +
-                  '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD INDEX `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
                 end;
               end;
             end
@@ -524,19 +600,17 @@ begin
               childKeySource := GetCompositeColumns(SourceQuery, IndexName);
               childKeyCheck := GetCompositeColumns(CheckQuery, IndexName);
 
-              if (childKeySource <> childKeyCheck) AND (childKeyCheck <> '') then
+              if (childKeySource <> childKeyCheck) and (childKeyCheck <> '') then
               begin
                 if IndexName <> 'PRIMARY' then
                 begin
                   if SourceQuery.FieldByName('Non_unique').AsString = '0' then
                   begin
-                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName +
-                      '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
                   end
                   else
                   begin
-                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName +
-                      '`, ADD INDEX `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD INDEX `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
                   end;
                 end;
               end;
@@ -845,10 +919,7 @@ begin
     SourceQuery.Open;
     while not SourceQuery.Eof do
     begin
-      var TriggerInfo: string := Format('%s|%s|%s',
-        [SourceQuery.FieldByName('ACTION_TIMING').AsString,
-         SourceQuery.FieldByName('EVENT_MANIPULATION').AsString,
-         SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString]);
+      var TriggerInfo: string := Format('%s|%s|%s', [SourceQuery.FieldByName('ACTION_TIMING').AsString, SourceQuery.FieldByName('EVENT_MANIPULATION').AsString, SourceQuery.FieldByName('EVENT_OBJECT_TABLE').AsString]);
       SourceTrigger.Add(TriggerInfo);
 
       SourceQuery.Next;
@@ -860,10 +931,7 @@ begin
     CheckQuery.Open;
     while not CheckQuery.Eof do
     begin
-      var TriggerInfo: string := Format('%s|%s|%s',
-        [CheckQuery.FieldByName('ACTION_TIMING').AsString,
-         CheckQuery.FieldByName('EVENT_MANIPULATION').AsString,
-         CheckQuery.FieldByName('EVENT_OBJECT_TABLE').AsString]);
+      var TriggerInfo: string := Format('%s|%s|%s', [CheckQuery.FieldByName('ACTION_TIMING').AsString, CheckQuery.FieldByName('EVENT_MANIPULATION').AsString, CheckQuery.FieldByName('EVENT_OBJECT_TABLE').AsString]);
       CheckTrigger.Add(TriggerInfo);
 
       CheckQuery.Next;
@@ -889,8 +957,7 @@ begin
       if MatchingTriggerInfo = '' then
       begin
         // Create Trigger
-        SourceQuery.SQL.Text := 'SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE ' +
-        'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
+        SourceQuery.SQL.Text := 'SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE ' + 'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
         SourceQuery.ParamByName('Database').AsString := SourceDB;
         SourceQuery.ParamByName('Table').AsString := SourceTriggerInfo.Split(['|'])[2];
         SourceQuery.ParamByName('Time').AsString := SourceTriggerInfo.Split(['|'])[0];
@@ -915,8 +982,7 @@ begin
         PatchFlag := False;
         nameTriggerSame := True;
 
-        TriggerQuery := 'SELECT TRIGGER_NAME, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE ' +
-        'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
+        TriggerQuery := 'SELECT TRIGGER_NAME, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE ' + 'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
 
         SourceQuery.SQL.Text := TriggerQuery;
         SourceQuery.ParamByName('Database').AsString := SourceDB;
@@ -1065,8 +1131,7 @@ begin
 
             if vfieldValue = Null then
               ValuesStatement := ValuesStatement + 'NULL,'
-            else
-            if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
+            else if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
               ValuesStatement := ValuesStatement + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
             else
               ValuesStatement := ValuesStatement + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
@@ -1103,17 +1168,16 @@ begin
                 end
                 else
                 begin
-                  if (VarToStrDef(vsourceValue, '') <> VarToStrDef(vcheckValue, '')) AND (vfieldName <> 'SEQ_ID') then
+                  if (VarToStrDef(vsourceValue, '') <> VarToStrDef(vcheckValue, '')) and (vfieldName <> 'SEQ_ID') then
                     hasChanges := True;
                 end;
 
-                if hasChanges AND (vfieldName <> 'SEQ_ID') then
+                if hasChanges and (vfieldName <> 'SEQ_ID') then
                 begin
                   // Tambahkan kolom ke pernyataan UPDATE
                   if VarIsNull(vsourceValue) then
                     updateStatement := updateStatement + '`' + vfieldName + '` = NULL,'
-                  else
-                  if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
+                  else if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
                     updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
                   else
                     updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
@@ -1186,5 +1250,4 @@ begin
 end;
 
 end.
-
 
