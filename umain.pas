@@ -12,6 +12,7 @@ type
   TFPATCH = class(TForm)
     Panel1: TPanel;
     sMemo1: TsMemo;
+    sMemo2: TsMemo;
     cDBsource: TComboBox;
     cDBcheck: TComboBox;
     bStartPatch: TsButton;
@@ -25,7 +26,6 @@ type
     sLabel4: TsLabel;
     bDelete: TsButton;
     con2: TMyConnection;
-    sMemo2: TsMemo;
     cAutoPatch: TsCheckBox;
     bExit: TsButton;
     bSetting: TsButton;
@@ -40,6 +40,7 @@ type
     cPortSource: TsEdit;
     sLabel6: TsLabel;
     cPortCheck: TsEdit;
+    bDefault: TsButton;
     procedure FormCreate(Sender: TObject);
     procedure cServerExit(Sender: TObject);
     procedure cServerChange(Sender: TObject);
@@ -54,6 +55,7 @@ type
     procedure cAutoPatchExit(Sender: TObject);
     procedure bExitClick(Sender: TObject);
     procedure bSettingClick(Sender: TObject);
+    procedure bDefaultClick(Sender: TObject);
   private
     { Private declarations }
     autoPatch, openSetting: boolean;
@@ -155,6 +157,8 @@ begin
     bSetting.Top := 160;
     bCopy.Top := 160;
     bDelete.Top := 160;
+    bDefault.Top := 160;
+    bDefault.Visible := True;
     slabel2.Caption := 'USERNAME SERVER 1';
     slabel3.Caption := 'USERNAME SERVER 2';
     cDBsource.Visible := False;
@@ -182,6 +186,8 @@ begin
     bSetting.Top := 106;
     bCopy.Top := 106;
     bDelete.Top := 106;
+    bDefault.Top := 106;
+    bDefault.Visible := False;
     slabel2.Caption := 'DATABASE SUMBER';
     slabel3.Caption := 'DATABASE TUJUAN';
     cDBsource.Visible := True;
@@ -273,6 +279,18 @@ begin
         MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0);
     end;
   end;
+end;
+
+procedure TFPATCH.bDefaultClick(Sender: TObject);
+begin
+  cServer.Text := '192.168.0.38';
+  cServer2.Text := '192.168.0.38';
+  cUserSource.Text := 'Fatra';
+  cUserCheck.Text := 'Fatra';
+  cPassSource.Text := '73fangfang';
+  cPassCheck.Text := '73fangfang';
+  cPortSource.Text := '3306';
+  cPortCheck.Text := '3306';
 end;
 
 procedure TFPATCH.bDeleteClick(Sender: TObject);

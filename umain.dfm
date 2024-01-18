@@ -503,6 +503,34 @@ object FPATCH: TFPATCH
       ExplicitTop = 765
       ExplicitWidth = 935
     end
+    object bDefault: TsButton
+      Left = 329
+      Top = 106
+      Width = 140
+      Height = 45
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Caption = 'Default Server'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -18
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ParentFont = False
+      TabOrder = 19
+      Visible = False
+      OnClick = bDefaultClick
+      AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
+      SkinData.CustomColor = True
+      SkinData.CustomFont = True
+      CommandLinkFont.Charset = DEFAULT_CHARSET
+      CommandLinkFont.Color = 3155860
+      CommandLinkFont.Height = -18
+      CommandLinkFont.Name = 'Segoe UI'
+      CommandLinkFont.Style = []
+    end
   end
   object con1: TMyConnection
     Options.DisconnectedMode = True
