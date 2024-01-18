@@ -208,19 +208,19 @@ var
 begin
   if (cDBsource.Text = '') or (cDBcheck.Text = '') then
   begin
-    MessageDlg('Database Lama dan Database Baru harus diisi!', mtWarning, [mbOK], 0);
+    MessageDlg('Database Sumber dan Database Tujuan harus diisi!', mtWarning, [mbOK], 0);
     Exit;
   end
   else
   begin
     if cDBsource.Text = cDBcheck.Text then
     begin
-      MessageDlg('Database Lama dan Database Baru tidak boleh sama!', mtWarning, [mbOK], 0);
+      MessageDlg('Database Sumber dan Database Tujuan tidak boleh sama!', mtWarning, [mbOK], 0);
       Exit;
     end
     else
     begin
-      Confirmation := MessageDlg('Yakin ingin Patch, Apakah Database Lama dan Baru sudah Benar?', mtConfirmation, mbYesNo, 0);
+      Confirmation := MessageDlg('Yakin ingin Patch, Apakah Database Sumber dan Tujuan sudah Benar?', mtConfirmation, mbYesNo, 0);
       if Confirmation <> mrYes then
       begin
         MessageDlg('Patch dibatalkan..', mtInformation, [mbOK], 0);
