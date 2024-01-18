@@ -254,6 +254,7 @@ begin
         on E: Exception do
         begin
           con2.Rollback;
+          sMemo1.Cursor := crDefault;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
           exit;
         end;
@@ -655,6 +656,7 @@ begin
         on E: Exception do
         begin
           con2.Rollback;
+          sMemo1.Cursor := crDefault;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
           exit;
         end;
@@ -1063,6 +1065,7 @@ begin
         on E: Exception do
         begin
           con2.Rollback;
+          sMemo1.Cursor := crDefault;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
           exit;
         end;
@@ -1236,6 +1239,7 @@ begin
         on E: Exception do
         begin
           con2.Rollback;
+          sMemo1.Cursor := crDefault;
           ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
           exit;
         end;
