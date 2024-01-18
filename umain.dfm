@@ -27,6 +27,42 @@ object FPATCH: TFPATCH
     TabOrder = 0
     ExplicitWidth = 937
     ExplicitHeight = 802
+    object sLabel6: TsLabel
+      Left = 710
+      Top = 83
+      Width = 134
+      Height = 25
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Caption = 'PORT SERVER 2'
+      ParentFont = False
+      Visible = False
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -18
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+    end
+    object sLabel5: TsLabel
+      Left = 710
+      Top = 13
+      Width = 134
+      Height = 25
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Caption = 'PORT SERVER 1'
+      ParentFont = False
+      Visible = False
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -18
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+    end
     object sLabel8: TsLabel
       Left = 480
       Top = 83
@@ -131,41 +167,31 @@ object FPATCH: TFPATCH
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
     end
-    object sLabel5: TsLabel
+    object cPortCheck: TsEdit
       Left = 710
-      Top = 13
-      Width = 134
-      Height = 25
+      Top = 112
+      Width = 220
+      Height = 33
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      Caption = 'PORT SERVER 1'
-      ParentFont = False
+      TabOrder = 18
       Visible = False
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -18
-      Font.Name = 'Segoe UI'
-      Font.Style = [fsBold]
+      OnChange = cServer2Change
     end
-    object sLabel6: TsLabel
+    object cPortSource: TsEdit
       Left = 710
-      Top = 83
-      Width = 134
-      Height = 25
+      Top = 42
+      Width = 220
+      Height = 33
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      Caption = 'PORT SERVER 2'
-      ParentFont = False
+      TabOrder = 17
       Visible = False
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -18
-      Font.Name = 'Segoe UI'
-      Font.Style = [fsBold]
+      OnChange = cServerChange
     end
     object cPassSource: TsEdit
       Left = 480
@@ -476,32 +502,6 @@ object FPATCH: TFPATCH
       OnChange = eDelimiterChange
       ExplicitTop = 765
       ExplicitWidth = 935
-    end
-    object cPortSource: TsEdit
-      Left = 710
-      Top = 42
-      Width = 220
-      Height = 33
-      Margins.Left = 4
-      Margins.Top = 4
-      Margins.Right = 4
-      Margins.Bottom = 4
-      TabOrder = 17
-      Visible = False
-      OnChange = cServerChange
-    end
-    object cPortCheck: TsEdit
-      Left = 710
-      Top = 112
-      Width = 220
-      Height = 33
-      Margins.Left = 4
-      Margins.Top = 4
-      Margins.Right = 4
-      Margins.Bottom = 4
-      TabOrder = 18
-      Visible = False
-      OnChange = cServer2Change
     end
   end
   object con1: TMyConnection
