@@ -1097,7 +1097,7 @@ end;
 procedure TFPATCH.CreatePatchField;
 var
   SourceQuery, CheckQuery: TMyQuery;
-  SourceDB, CheckDB, TableName: string;
+  SourceDB, CheckDB, TableName, SourcePri, CheckPri: string;
   PatchFlag, hasChanges: boolean;
   QueryText, CurrentQuery: string;
   StartPos, EndPos: Integer;
@@ -1114,10 +1114,19 @@ begin
     SourceQuery.Connection := con1;
     CheckQuery.Connection := con2;
 
-    var TablesToCheck: TArray<string> := ['erp_table', 'erp_menu', 'erp_lookup_set', 'erp_lookup_value'];
+    var TablesToCheck: TArray<string> := ['erp_table', 'erp_menu', 'erp_lookup_set', 'erp_lookup_value', 'coa_setup'];
 
     for TableName in TablesToCheck do
     begin
+      // pengecekan diganti berdasarkan primary key bukan TableName_ID
+      SourceQuery.SQL.Text := 'SELECT column_name FROM information_schema.key_column_usage WHERE constraint_name = "PRIMARY" AND table_schema = ' + QuotedStr(SourceDB) + ' AND table_name = ' + QuotedStr(TableName);
+      CheckQuery.SQL.Text := 'SELECT column_name FROM information_schema.key_column_usage WHERE constraint_name = "PRIMARY" AND table_schema = ' + QuotedStr(CheckDB) + ' AND table_name = ' + QuotedStr(TableName);
+      SourceQuery.Open;
+      CheckQuery.Open;
+
+      SourcePri := SourceQuery.FieldByName('column_name').AsString;
+      CheckPri := CheckQuery.FieldByName('column_name').AsString;
+
       if TableName = 'erp_lookup_value' then
       begin
         SourceQuery.SQL.Text := 'SELECT * FROM `' + SourceDB + '`.`' + TableName + '` WHERE ERP_LOOKUP_SET_ID NOT IN (48, 49, 52, 53, 54, 55)';
@@ -1131,99 +1140,110 @@ begin
       SourceQuery.Open;
       CheckQuery.Open;
 
-      while not SourceQuery.EOF do
+      if SourcePri = CheckPri then
       begin
-        var nama_table_idValue := SourceQuery.FieldByName(UpperCase(TableName) + '_ID').AsString;
-
-        if not CheckQuery.Locate(UpperCase(TableName) + '_ID', nama_table_idValue, []) then
+        while not SourceQuery.EOF do
         begin
-          // INSERT
-          sMemo2.Lines.Add('DELETE FROM `' + TableName + '` WHERE `' + UpperCase(TableName) + '_ID`=' + nama_table_idValue + ';');
+          var nama_table_idValue := SourceQuery.FieldByName(SourcePri).AsString;
 
-          var InsertStatement: string := 'INSERT INTO `' + TableName + '` (';
-          var ValuesStatement: string := 'VALUES (';
-
-          for var j := 0 to SourceQuery.FieldCount - 1 do
+          if not CheckQuery.Locate(CheckPri, nama_table_idValue, []) then
           begin
-            var vfieldName := SourceQuery.Fields[j].FieldName;
-            var vfieldValue := SourceQuery.FieldByName(vfieldName).Value;
+            // INSERT
+            sMemo2.Lines.Add('DELETE FROM `' + TableName + '` WHERE `' + CheckPri + '`=' + QuotedStr(nama_table_idValue) + ';');
 
-            InsertStatement := InsertStatement + '`' + vfieldName + '`,';
-
-            if vfieldValue = Null then
-              ValuesStatement := ValuesStatement + 'NULL,'
-            else if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
-              ValuesStatement := ValuesStatement + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
-            else
-              ValuesStatement := ValuesStatement + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
-          end;
-
-          // Hapus koma terakhir
-          Delete(InsertStatement, Length(InsertStatement), 1);
-          Delete(ValuesStatement, Length(ValuesStatement), 1);
-
-          InsertStatement := InsertStatement + ') ' + ValuesStatement + ');';
-          sMemo2.Lines.Add(InsertStatement);
-        end
-        else
-        begin
-          // UPDATE
-          if TableName <> 'erp_menu' then
-          begin
-            hasChanges := False;
-            var updateStatement := 'UPDATE `' + TableName + '` SET ';
+            var InsertStatement: string := 'INSERT INTO `' + TableName + '` (';
+            var ValuesStatement: string := 'VALUES (';
 
             for var j := 0 to SourceQuery.FieldCount - 1 do
             begin
               var vfieldName := SourceQuery.Fields[j].FieldName;
+              var vfieldValue := SourceQuery.FieldByName(vfieldName).Value;
 
-              if CheckQuery.FieldByName(vfieldName) <> nil then
+              InsertStatement := InsertStatement + '`' + vfieldName + '`,';
+
+              if (SourceQuery.Fields[j].DataType in [ftDate, ftDateTime]) and (SourceQuery.FieldByName(vfieldName).AsDateTime = 0) then
+                ValuesStatement := ValuesStatement + QuotedStr('0000-00-00 00:00:00') + ','
+              else
+              if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
+                ValuesStatement := ValuesStatement + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
+              else
+              if (vfieldValue = Null) then
+                ValuesStatement := ValuesStatement + 'NULL,'
+              else
+                ValuesStatement := ValuesStatement + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
+            end;
+
+            // Hapus koma terakhir
+            Delete(InsertStatement, Length(InsertStatement), 1);
+            Delete(ValuesStatement, Length(ValuesStatement), 1);
+
+            InsertStatement := InsertStatement + ') ' + ValuesStatement + ');';
+            sMemo2.Lines.Add(InsertStatement);
+          end
+          else
+          begin
+            // UPDATE
+            if not ((TableName = 'erp_menu') or (TableName = 'coa_setup')) then
+            begin
+              hasChanges := False;
+              var updateStatement := 'UPDATE `' + TableName + '` SET ';
+
+              for var j := 0 to SourceQuery.FieldCount - 1 do
               begin
-                var vsourceValue := SourceQuery.FieldByName(vfieldName).Value;
-                var vcheckValue := CheckQuery.FieldByName(vfieldName).Value;
+                var vfieldName := SourceQuery.Fields[j].FieldName;
 
-                if VarIsNull(vsourceValue) then
+                if CheckQuery.FieldByName(vfieldName) <> nil then
                 begin
-                  if not VarIsNull(vcheckValue) then
-                    hasChanges := True;
+                  var vsourceValue := SourceQuery.FieldByName(vfieldName).Value;
+                  var vcheckValue := CheckQuery.FieldByName(vfieldName).Value;
+
+                  if VarIsNull(vsourceValue) then
+                  begin
+                    if not VarIsNull(vcheckValue) then
+                      hasChanges := True;
+                  end
+                  else
+                  begin
+                    if (VarToStrDef(vsourceValue, '') <> VarToStrDef(vcheckValue, '')) and (vfieldName <> 'SEQ_ID') then
+                      hasChanges := True;
+                  end;
+
+                  if hasChanges and (vfieldName <> 'SEQ_ID') then
+                  begin
+                    // Tambahkan kolom ke pernyataan UPDATE
+                    if (SourceQuery.Fields[j].DataType in [ftDate, ftDateTime]) and (SourceQuery.FieldByName(vfieldName).AsDateTime = 0) then
+                      updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr('0000-00-00 00:00:00') + ','
+                    else
+                    if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
+                      updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
+                    else
+                    if VarIsNull(vsourceValue) then
+                      updateStatement := updateStatement + '`' + vfieldName + '` = NULL,'
+                    else
+                      updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
+                  end;
                 end
                 else
-                begin
-                  if (VarToStrDef(vsourceValue, '') <> VarToStrDef(vcheckValue, '')) and (vfieldName <> 'SEQ_ID') then
-                    hasChanges := True;
-                end;
+                  updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
+              end;
 
-                if hasChanges and (vfieldName <> 'SEQ_ID') then
-                begin
-                  // Tambahkan kolom ke pernyataan UPDATE
-                  if VarIsNull(vsourceValue) then
-                    updateStatement := updateStatement + '`' + vfieldName + '` = NULL,'
-                  else if SourceQuery.Fields[j].DataType in [ftDate, ftDateTime] then
-                    updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(FormatDateTime('yyyy-mm-dd hh:nn:ss', SourceQuery.FieldByName(vfieldName).AsDateTime)) + ','
-                  else
-                    updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
-                end;
-              end
-              else
-                updateStatement := updateStatement + '`' + vfieldName + '` = ' + QuotedStr(SourceQuery.FieldByName(vfieldName).AsString) + ',';
-            end;
+              if hasChanges then
+              begin
+                // Hapus koma terakhir
+                updateStatement := Copy(updateStatement, 1, Length(updateStatement) - 1);
 
-            if hasChanges then
-            begin
-              // Hapus koma terakhir
-              updateStatement := Copy(updateStatement, 1, Length(updateStatement) - 1);
-
-              updateStatement := updateStatement + ' WHERE `' + UpperCase(TableName) + '_ID` = ' + nama_table_idValue + ';';
-              sMemo2.Lines.Add(updateStatement);
+                updateStatement := updateStatement + ' WHERE `' + CheckPri + '` = ' + nama_table_idValue + ';';
+                sMemo2.Lines.Add(updateStatement);
+              end;
             end;
           end;
+          SourceQuery.Next;
         end;
-
-        SourceQuery.Next;
       end;
     end;
 
     sMemo1.lines.Add(sMemo2.Text);
+    Sleep(2000);
 
     // untuk auto-patch
     if autoPatch and (sMemo2.Text <> '') then
