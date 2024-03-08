@@ -167,6 +167,24 @@ object FPATCH: TFPATCH
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
     end
+    object sLabel9: TsLabel
+      Left = 18
+      Top = 169
+      Width = 181
+      Height = 25
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Caption = 'OPSI PILIHAN PATCH'
+      ParentFont = False
+      Visible = False
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -18
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+    end
     object cPortCheck: TsEdit
       Left = 710
       Top = 112
@@ -260,15 +278,15 @@ object FPATCH: TFPATCH
       OnEnter = cDBcheckEnter
     end
     object bCopy: TsButton
-      Left = 631
+      Left = 626
       Top = 106
-      Width = 140
+      Width = 70
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      Caption = 'Copy Patch'
+      Caption = 'Copy'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -18
@@ -288,15 +306,15 @@ object FPATCH: TFPATCH
       CommandLinkFont.Style = []
     end
     object bSetting: TsButton
-      Left = 480
+      Left = 784
       Top = 106
-      Width = 140
+      Width = 142
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      Caption = 'Setting Server'
+      Caption = 'Open Setting'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -18
@@ -393,15 +411,15 @@ object FPATCH: TFPATCH
       OnExit = cServer2Exit
     end
     object bDelete: TsButton
-      Left = 782
+      Left = 706
       Top = 106
-      Width = 140
+      Width = 70
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
-      Caption = 'Delete Patch'
+      Caption = 'Clear'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -18
@@ -428,6 +446,7 @@ object FPATCH: TFPATCH
       Margins.Top = 4
       Margins.Right = 4
       Margins.Bottom = 4
+      Enabled = False
       ScrollBars = ssBoth
       TabOrder = 8
       Visible = False
@@ -504,9 +523,9 @@ object FPATCH: TFPATCH
       ExplicitWidth = 935
     end
     object bDefault: TsButton
-      Left = 329
+      Left = 480
       Top = 106
-      Width = 140
+      Width = 138
       Height = 45
       Margins.Left = 4
       Margins.Top = 4
@@ -520,7 +539,6 @@ object FPATCH: TFPATCH
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 19
-      Visible = False
       OnClick = bDefaultClick
       AnimatEvents = [aeMouseEnter, aeMouseLeave, aeClick, aeGlobalDef]
       SkinData.CustomColor = True
@@ -530,6 +548,31 @@ object FPATCH: TFPATCH
       CommandLinkFont.Height = -18
       CommandLinkFont.Name = 'Segoe UI'
       CommandLinkFont.Style = []
+    end
+    object cPatchChoice: TComboBox
+      Left = 208
+      Top = 165
+      Width = 261
+      Height = 33
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -18
+      Font.Name = 'Segoe UI'
+      Font.Style = [fsBold]
+      ItemIndex = 0
+      ParentFont = False
+      TabOrder = 20
+      Text = 'Semua Patch'
+      Visible = False
+      Items.Strings = (
+        'Semua Patch'
+        'Hanya Patch Table'
+        'Hanya Patch Trigger'
+        'Patch Field ERP Tertentu')
     end
   end
   object con1: TMyConnection

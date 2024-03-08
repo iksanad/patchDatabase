@@ -6,7 +6,8 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.StdCtrls, sMemo, Vcl.ExtCtrls, sButton, Vcl.Buttons, sLabel, Data.DB,
-  DBAccess, MyAccess, sEdit, MemDS, Clipbrd, sCheckBox;
+  DBAccess, MyAccess, sEdit, MemDS, Clipbrd, sCheckBox, Vcl.Mask, sMaskEdit,
+  sCustomComboEdit, sComboBox;
 
 type
   TFPATCH = class(TForm)
@@ -41,6 +42,8 @@ type
     sLabel6: TsLabel;
     cPortCheck: TsEdit;
     bDefault: TsButton;
+    cPatchChoice: TComboBox;
+    sLabel9: TsLabel;
     procedure FormCreate(Sender: TObject);
     procedure cServerExit(Sender: TObject);
     procedure cServerChange(Sender: TObject);
@@ -158,7 +161,8 @@ begin
     bCopy.Top := 160;
     bDelete.Top := 160;
     bDefault.Top := 160;
-    bDefault.Visible := True;
+    sLabel9.Visible := True;
+    cPatchChoice.Visible := True;
     slabel2.Caption := 'USERNAME SERVER 1';
     slabel3.Caption := 'USERNAME SERVER 2';
     cDBsource.Visible := False;
@@ -187,7 +191,8 @@ begin
     bCopy.Top := 106;
     bDelete.Top := 106;
     bDefault.Top := 106;
-    bDefault.Visible := False;
+    sLabel9.Visible := False;
+    cPatchChoice.Visible := False;
     slabel2.Caption := 'DATABASE SUMBER';
     slabel3.Caption := 'DATABASE TUJUAN';
     cDBsource.Visible := True;
@@ -202,7 +207,7 @@ begin
     sLabel6.Visible := False;
     cPortSource.Visible := False;
     cPortCheck.Visible := False;
-    bSetting.Caption := 'Setting Server';
+    bSetting.Caption := 'Open Setting';
     openSetting := False;
   end;
 end;
@@ -249,10 +254,17 @@ begin
       if not con2.InTransaction then
         con2.StartTransaction;
       try
-        CreatePatchTable;
-        CreatePatchField;
-        CreatePatchRoutines;
-        CreatePatchTrigger;
+        if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 1) then
+          CreatePatchTable;
+
+        if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 3) then
+          CreatePatchField;
+
+        if (cPatchChoice.ItemIndex = 0) then
+          CreatePatchRoutines;
+
+        if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 2) then
+          CreatePatchTrigger;
 
         if autoPatch then
           con2.Commit;
@@ -1029,13 +1041,14 @@ begin
           SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + SourceQuery.Fields[0].AsString + '`';
           SourceQuery.Open;
 
+          sMemo2.Lines.Add('/* Updated Trigger */');
           if not nameTriggerSame then
           begin
+            sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + CheckQuery.Fields[0].AsString + '`' + delimiterNonTables);
             QRunning := 'DROP TRIGGER IF EXISTS `' + CheckQuery.Fields[0].AsString + '`';
             AutoPatching;
           end;
 
-          sMemo2.Lines.Add('/* Updated Trigger */');
           sMemo2.Lines.Add('DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`' + delimiterNonTables);
           QRunning := 'DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`';
           AutoPatching;
@@ -1126,6 +1139,15 @@ begin
 
       SourcePri := SourceQuery.FieldByName('column_name').AsString;
       CheckPri := CheckQuery.FieldByName('column_name').AsString;
+
+      if (SourcePri = '') or (CheckPri = '') then
+      begin
+        SourceQuery.SQL.Text := 'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ' + QuotedStr(SourceDB) + ' AND TABLE_NAME = ' + QuotedStr(TableName) + ' AND ORDINAL_POSITION = 1';
+        SourceQuery.Open;
+
+        SourcePri := SourceQuery.FieldByName('column_name').AsString;
+        CheckPri := SourceQuery.FieldByName('column_name').AsString;
+      end;
 
       if TableName = 'erp_lookup_value' then
       begin
