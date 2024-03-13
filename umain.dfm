@@ -24,6 +24,8 @@ object FPATCH: TFPATCH
     Margins.Right = 4
     Margins.Bottom = 4
     Align = alClient
+    Color = 16182204
+    ParentBackground = False
     TabOrder = 0
     ExplicitWidth = 937
     ExplicitHeight = 802
