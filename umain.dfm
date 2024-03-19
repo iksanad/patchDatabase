@@ -574,6 +574,7 @@ object FPATCH: TFPATCH
         'Semua Patch'
         'Hanya Patch Table'
         'Hanya Patch Trigger'
+        'Patch Function dan Procedure'
         'Patch Field ERP Tertentu')
     end
   end

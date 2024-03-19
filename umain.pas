@@ -257,10 +257,10 @@ begin
         if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 1) then
           CreatePatchTable;
 
-        if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 3) then
+        if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 4) then
           CreatePatchField;
 
-        if (cPatchChoice.ItemIndex = 0) then
+        if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 3) then
           CreatePatchRoutines;
 
         if (cPatchChoice.ItemIndex = 0) OR (cPatchChoice.ItemIndex = 2) then
@@ -886,7 +886,7 @@ begin
         patchFlag := False;
         SourceQuery.SQL.Text := 'SHOW CREATE FUNCTION `' + SourceDB + '`.`' + RoutinesName + '`';
         SourceQuery.Open;
-        CheckQuery.SQL.Text := 'SHOW CREATE FUNCTION `' + SourceDB + '`.`' + RoutinesName + '`';
+        CheckQuery.SQL.Text := 'SHOW CREATE FUNCTION `' + CheckDB + '`.`' + RoutinesName + '`';
         CheckQuery.Open;
 
         if SourceQuery.Fields[2].AsString <> CheckQuery.Fields[2].AsString then
