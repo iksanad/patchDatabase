@@ -633,7 +633,11 @@ begin
 
               if (childKeySource <> childKeyCheck) and (childKeyCheck <> '') then
               begin
-                if IndexName <> 'PRIMARY' then
+                if IndexName = 'PRIMARY' then
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP PRIMARY KEY, ADD PRIMARY KEY (' + childKeySource + ') USING BTREE;');
+                end
+                else
                 begin
                   if SourceQuery.FieldByName('Non_unique').AsString = '0' then
                   begin
