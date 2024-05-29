@@ -7,7 +7,7 @@ uses
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.StdCtrls, sMemo, Vcl.ExtCtrls, sButton, Vcl.Buttons, sLabel, Data.DB,
   DBAccess, MyAccess, sEdit, MemDS, Clipbrd, sCheckBox, Vcl.Mask, sMaskEdit,
-  sCustomComboEdit, sComboBox;
+  sCustomComboEdit, sComboBox, DAScript, MyScript;
 
 type
   TFPATCH = class(TForm)
@@ -44,6 +44,7 @@ type
     bDefault: TsButton;
     cPatchChoice: TComboBox;
     sLabel9: TsLabel;
+    sql1: TMyScript;
     procedure FormCreate(Sender: TObject);
     procedure cServerExit(Sender: TObject);
     procedure cServerChange(Sender: TObject);
@@ -59,10 +60,12 @@ type
     procedure bExitClick(Sender: TObject);
     procedure bSettingClick(Sender: TObject);
     procedure bDefaultClick(Sender: TObject);
+    procedure sql1Error(Sender: TObject; E: Exception; SQL: string;
+      var Action: TErrorAction);
   private
     { Private declarations }
     autoPatch, openSetting: boolean;
-    delimiterNonTables, folderPatch, QRunning: string;
+    delimiterNonTables, folderPatch, QRunning, tempError: string;
     function ConnectDatabase(Server, Database: string): Boolean;
     function GetCompositeColumns(Query: TMyQuery; keyName: string): string;
     procedure CreatePatchTable;
@@ -142,6 +145,12 @@ begin
   end;
 end;
 
+procedure TFPATCH.sql1Error(Sender: TObject; E: Exception; SQL: string;
+  var Action: TErrorAction);
+begin
+  Action := eaFail;
+end;
+
 procedure TFPATCH.bCopyClick(Sender: TObject);
 begin
   Clipboard.AsText := sMemo1.Lines.Text;
@@ -214,7 +223,7 @@ end;
 
 procedure TFPATCH.bStartPatchClick(Sender: TObject);
 var
-  PatchFileName, dateFile: string;
+  PatchFileName, dateFile, ErrorFileName: string;
   Confirmation: Integer;
 begin
   if (cDBsource.Text = '') or (cDBcheck.Text = '') then
@@ -238,6 +247,8 @@ begin
         Exit;
       end;
 
+      tempError := '';
+
       folderPatch := cDBsource.Text + ' - ' + cDBcheck.Text + ' (' + FormatDateTime('dd-mmm-yyyy', Now) + ')';
       if DirectoryExists(folderPatch) then
       begin
@@ -248,6 +259,7 @@ begin
         CreateDir(folderPatch);
 
       PatchFileName := FormatDateTime('yymmdd-hh.nn.ss', Now) + '.txt';
+      ErrorFileName := 'error-' + FormatDateTime('yymmdd-hh.nn.ss', Now) + '.txt';
       sMemo1.Cursor := crAppStart;
       sMemo1.Text := '';
 
@@ -271,10 +283,14 @@ begin
       except
         on E: Exception do
         begin
-          con2.Rollback;
-          sMemo1.Cursor := crDefault;
-          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          exit;
+//          con2.Rollback;
+//          sMemo1.Cursor := crDefault;
+          if tempError = '' then
+            tempError := E.Message
+          else
+            tempError := tempError + #13 + E.Message;
+//          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+//          exit;
         end;
       end;
 
@@ -285,10 +301,28 @@ begin
         sMemo1.Lines.SaveToFile(folderPatch + '\' + PatchFileName);
       end;
 
+      if tempError <> '' then
+      begin
+        sMemo2.Text := '';
+        sMemo2.Text := tempError;
+        sMemo2.Lines.SaveToFile(folderPatch + '\' + ErrorFileName);
+        sMemo2.Text := '';
+      end;
+
       if not autoPatch then
-        MessageDlg('Sukses Membuat Patch.' + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0)
+      begin
+        if tempError <> '' then
+          MessageDlg('Sukses Membuat Patch, namun dengan beberapa kesalahan.' + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0)
+        else
+          MessageDlg('Sukses Membuat Patch.' + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0);
+      end
       else
-        MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0);
+      begin
+        if tempError <> '' then
+          MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + ' namun dengan beberapa kesalahan.' + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0)
+        else
+          MessageDlg('Sukses Melakukan Patch ke Database ' + cDBcheck.Text + '.' + #13 + 'Patch tersimpan di folder : ' + #13 + folderPatch, mtInformation, [mbOK], 0);
+      end;
     end;
   end;
 end;
@@ -525,24 +559,16 @@ begin
               if SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> '' then
               begin
                 if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-                begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
-                end
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;')
                 else
-                begin
                   sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
-                end;
               end
               else
               begin
                 if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-                begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
-                end
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;')
                 else
-                begin
                   sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
-                end;
               end;
             end;
           end
@@ -552,24 +578,16 @@ begin
             if SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> '' then
             begin
               if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-              begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
-              end
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;')
               else
-              begin
                 sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
-              end;
             end
             else
             begin
               if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-              begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
-              end
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;')
               else
-              begin
                 sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
-              end;
             end;
           end;
 
@@ -610,19 +628,13 @@ begin
             begin
               // Add Index
               if IndexName = 'PRIMARY' then
-              begin
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
-              end
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;')
               else
               begin
                 if SourceQuery.FieldByName('Non_unique').AsString = '0' then
-                begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
-                end
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;')
                 else
-                begin
                   sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD INDEX `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
-                end;
               end;
             end
             else
@@ -634,19 +646,13 @@ begin
               if (childKeySource <> childKeyCheck) and (childKeyCheck <> '') then
               begin
                 if IndexName = 'PRIMARY' then
-                begin
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP PRIMARY KEY, ADD PRIMARY KEY (' + childKeySource + ') USING BTREE;');
-                end
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP PRIMARY KEY, ADD PRIMARY KEY (' + childKeySource + ') USING BTREE;')
                 else
                 begin
                   if SourceQuery.FieldByName('Non_unique').AsString = '0' then
-                  begin
-                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
-                  end
+                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;')
                   else
-                  begin
                     sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD INDEX `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
-                  end;
                 end;
               end;
             end;
@@ -682,17 +688,22 @@ begin
 
           if CurrentQuery <> '' then
           begin
-            CheckQuery.SQL.Text := CurrentQuery;
-            CheckQuery.Execute;
+            sql1.SQL.Clear;
+            sql1.SQL.Text := CurrentQuery;
+            sql1.Execute;
           end;
         end;
       except
         on E: Exception do
         begin
           con2.Rollback;
-          sMemo1.Cursor := crDefault;
-          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          exit;
+//          sMemo1.Cursor := crDefault;
+          if tempError = '' then
+            tempError := E.Message
+          else
+            tempError := tempError + #13 + E.Message;
+//          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+//          exit;
         end;
       end;
     end;
@@ -926,7 +937,7 @@ procedure TFPATCH.CreatePatchTrigger;
 var
   SourceQuery, CheckQuery: TMyQuery;
   SourceTrigger, CheckTrigger: TStringList;
-  SourceDB, CheckDB, TriggerName, TriggerQuery, OutputFolder: string;
+  SourceDB, CheckDB, TriggerName, TriggerQuery, OutputFolder, TempTrigger: string;
   PatchFlag, nameTriggerSame: boolean;
 begin
   SourceDB := cDBsource.Text;
@@ -993,14 +1004,14 @@ begin
       if MatchingTriggerInfo = '' then
       begin
         // Create Trigger
-        SourceQuery.SQL.Text := 'SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE ' + 'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
+        SourceQuery.SQL.Text := 'SELECT TRIGGER_NAME, ACTION_STATEMENT FROM information_schema.TRIGGERS WHERE ' + 'TRIGGER_SCHEMA = :Database AND EVENT_OBJECT_TABLE = :Table AND ACTION_TIMING = :Time AND EVENT_MANIPULATION = :Event';
         SourceQuery.ParamByName('Database').AsString := SourceDB;
         SourceQuery.ParamByName('Table').AsString := SourceTriggerInfo.Split(['|'])[2];
         SourceQuery.ParamByName('Time').AsString := SourceTriggerInfo.Split(['|'])[0];
         SourceQuery.ParamByName('Event').AsString := SourceTriggerInfo.Split(['|'])[1];
         SourceQuery.Open;
 
-        SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + SourceQuery.Fields[0].AsString + '`';
+        SourceQuery.SQL.Text := 'USE ' + SourceDB + '; SHOW CREATE TRIGGER ' + SourceQuery.Fields[0].AsString + ';';
         SourceQuery.Open;
 
         sMemo2.Lines.Add('/* New Trigger */');
@@ -1008,8 +1019,25 @@ begin
         QRunning := 'DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`';
         AutoPatching;
 
-        sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
-        QRunning := SourceQuery.Fields[2].AsString;
+//        TempTrigger := '';
+//        TempTrigger := 'CREATE TRIGGER ' + SourceQuery.Fields[0].AsString + ' ' + SourceTriggerInfo.Split(['|'])[0] + ' ' + SourceTriggerInfo.Split(['|'])[1] + ' ON ' + SourceTriggerInfo.Split(['|'])[2] + ' FOR EACH ROW ';
+//        sMemo2.Lines.Add(TempTrigger + SourceQuery.Fields[1].AsString + delimiterNonTables);
+//        QRunning := TempTrigger + SourceQuery.Fields[1].AsString;
+
+        if Pos('`' + SourceDB + '`.', SourceQuery.Fields[2].AsString) > 0 then
+        begin
+          TempTrigger := '';
+          TempTrigger := StringReplace(SourceQuery.Fields[2].AsString, '`' + SourceDB + '`.', '', [rfReplaceAll]);
+          sMemo2.Lines.Add(TempTrigger + delimiterNonTables);
+          QRunning := TempTrigger;
+          TempTrigger := '';
+        end
+        else
+        begin
+          sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+          QRunning := SourceQuery.Fields[2].AsString;
+        end;
+
         AutoPatching;
       end
       else
@@ -1042,7 +1070,8 @@ begin
 
         if PatchFlag then
         begin
-          SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + SourceQuery.Fields[0].AsString + '`';
+//          SourceQuery.SQL.Text := 'SHOW CREATE TRIGGER `' + SourceDB + '`.`' + SourceQuery.Fields[0].AsString + '`';
+          SourceQuery.SQL.Text := 'USE ' + SourceDB + '; SHOW CREATE TRIGGER ' + SourceQuery.Fields[0].AsString + ';';
           SourceQuery.Open;
 
           sMemo2.Lines.Add('/* Updated Trigger */');
@@ -1057,8 +1086,24 @@ begin
           QRunning := 'DROP TRIGGER IF EXISTS `' + SourceQuery.Fields[0].AsString + '`';
           AutoPatching;
 
-          sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
-          QRunning := SourceQuery.Fields[2].AsString;
+//          TempTrigger := '';
+//          TempTrigger := 'CREATE TRIGGER ' + SourceQuery.Fields[0].AsString + ' ' + SourceTriggerInfo.Split(['|'])[0] + ' ' + SourceTriggerInfo.Split(['|'])[1] + ' ON ' + SourceTriggerInfo.Split(['|'])[2] + ' FOR EACH ROW ';
+//          sMemo2.Lines.Add(TempTrigger + SourceQuery.Fields[1].AsString + delimiterNonTables);
+//          QRunning := TempTrigger + SourceQuery.Fields[1].AsString;
+
+          if Pos('`' + SourceDB + '`.', SourceQuery.Fields[2].AsString) > 0 then
+          begin
+            TempTrigger := '';
+            TempTrigger := StringReplace(SourceQuery.Fields[2].AsString, '`' + SourceDB + '`.', '', [rfReplaceAll]);
+            sMemo2.Lines.Add(TempTrigger + delimiterNonTables);
+            QRunning := TempTrigger;
+            TempTrigger := '';
+          end
+          else
+          begin
+            sMemo2.Lines.Add(SourceQuery.Fields[2].AsString + delimiterNonTables);
+            QRunning := SourceQuery.Fields[2].AsString;
+          end;
           AutoPatching;
         end;
       end;
@@ -1080,33 +1125,31 @@ procedure TFPATCH.AutoPatching;
 var
   QueryText: string;
   StartPos, EndPos: Integer;
-  ExecQuery: TMyQuery;
 begin
   if autoPatch then
   begin
-    ExecQuery := TMyQuery.Create(nil);
-    try
-      QueryText := QRunning;
-      con2.Database := cDBcheck.Text;
-      ExecQuery.Connection := con2;
+    QueryText := QRunning;
+    con2.Database := cDBcheck.Text;
 
-      try
-        if QueryText <> '' then
-        begin
-          ExecQuery.SQL.Text := QueryText;
-          ExecQuery.Execute;
-        end;
-      except
-        on E: Exception do
-        begin
-          con2.Rollback;
-          sMemo1.Cursor := crDefault;
-          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-          exit;
-        end;
+    try
+      if QueryText <> '' then
+      begin
+        sql1.SQL.Clear;
+        sql1.SQL.Text := QueryText;
+        sql1.Execute;
       end;
-    finally
-      ExecQuery.Free;
+    except
+      on E: Exception do
+      begin
+        con2.Rollback;
+//        sMemo1.Cursor := crDefault;
+        if tempError = '' then
+          tempError := E.Message
+        else
+          tempError := tempError + #13 + E.Message;
+//        ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+//        exit;
+      end;
     end;
   end;
 end;
@@ -1168,13 +1211,16 @@ begin
 
       if SourcePri = CheckPri then
       begin
-        while not SourceQuery.EOF do
+        while not SourceQuery.Eof do
         begin
           var nama_table_idValue := SourceQuery.FieldByName(SourcePri).AsString;
 
           if not CheckQuery.Locate(CheckPri, nama_table_idValue, []) then
           begin
             // INSERT
+            sMemo1.Lines.Add('DELETE FROM `' + TableName + '` WHERE `' + CheckPri + '`=' + QuotedStr(nama_table_idValue) + ';');
+
+            sMemo2.Text := '';
             sMemo2.Lines.Add('DELETE FROM `' + TableName + '` WHERE `' + CheckPri + '`=' + QuotedStr(nama_table_idValue) + ';');
 
             var InsertStatement: string := 'INSERT INTO `' + TableName + '` (';
@@ -1204,6 +1250,9 @@ begin
             Delete(ValuesStatement, Length(ValuesStatement), 1);
 
             InsertStatement := InsertStatement + ') ' + ValuesStatement + ');';
+            sMemo1.Lines.Add(InsertStatement);
+
+            sMemo2.Text := '';
             sMemo2.Lines.Add(InsertStatement);
           end
           else
@@ -1259,20 +1308,67 @@ begin
                 updateStatement := Copy(updateStatement, 1, Length(updateStatement) - 1);
 
                 updateStatement := updateStatement + ' WHERE `' + CheckPri + '` = ' + nama_table_idValue + ';';
+                sMemo1.Lines.Add(updateStatement);
+
+                sMemo2.Text := '';
                 sMemo2.Lines.Add(updateStatement);
               end;
             end;
           end;
+
+          if autoPatch and (sMemo2.Text <> '') then
+          begin
+            QueryText := sMemo2.Text;
+            con2.Database := CheckDB;
+            if not con2.InTransaction then
+              con2.StartTransaction;
+            try
+              while QueryText <> '' do
+              begin
+                EndPos := Pos(';', QueryText);
+                if EndPos > 0 then
+                begin
+                  CurrentQuery := Trim(Copy(QueryText, 1, EndPos - 1));
+                  Delete(QueryText, 1, EndPos);
+                end
+                else
+                begin
+                  CurrentQuery := Trim(QueryText);
+                  QueryText := '';
+                end;
+
+                if CurrentQuery <> '' then
+                begin
+                  sql1.SQL.Clear;
+                  sql1.SQL.Text := CurrentQuery;
+                  sql1.Execute;
+                end;
+              end;
+            except
+              on E: Exception do
+              begin
+                con2.Rollback;
+//                sMemo1.Cursor := crDefault;
+                if tempError = '' then
+                  tempError := E.Message
+                else
+                  tempError := tempError + #13 + E.Message;
+//                ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+//                exit;
+              end;
+            end;
+          end;
+
           SourceQuery.Next;
         end;
       end;
     end;
 
-    sMemo1.lines.Add(sMemo2.Text);
-    Sleep(2000);
+//    sMemo1.lines.Add(sMemo2.Text);
+//    Sleep(1000);
 
     // untuk auto-patch
-    if autoPatch and (sMemo2.Text <> '') then
+{    if autoPatch and (sMemo2.Text <> '') then
     begin
       QueryText := sMemo2.Text;
       con2.Database := CheckDB;
@@ -1295,8 +1391,9 @@ begin
 
           if CurrentQuery <> '' then
           begin
-            CheckQuery.SQL.Text := CurrentQuery;
-            CheckQuery.Execute;
+            sql1.SQL.Clear;
+            sql1.SQL.Text := CurrentQuery;
+            sql1.Execute;
           end;
         end;
       except
@@ -1308,7 +1405,7 @@ begin
           exit;
         end;
       end;
-    end;
+    end;  }
 
     sMemo2.Text := '';
   finally

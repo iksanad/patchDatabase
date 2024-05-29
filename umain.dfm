@@ -596,4 +596,10 @@ object FPATCH: TFPATCH
     Top = 205
     EncryptedPassword = 'C8FFCCFF99FF9EFF91FF98FF99FF9EFF91FF98FF'
   end
+  object sql1: TMyScript
+    OnError = sql1Error
+    Connection = con2
+    Left = 185
+    Top = 217
+  end
 end
