@@ -65,7 +65,7 @@ type
   private
     { Private declarations }
     autoPatch, openSetting: boolean;
-    delimiterNonTables, folderPatch, QRunning, tempError: string;
+    delimiterNonTables, folderPatch, QRunning, tempError, tempNonTables: string;
     function ConnectDatabase(Server, Database: string): Boolean;
     function GetCompositeColumns(Query: TMyQuery; keyName: string): string;
     procedure CreatePatchTable;
@@ -699,9 +699,9 @@ begin
           con2.Rollback;
 //          sMemo1.Cursor := crDefault;
           if tempError = '' then
-            tempError := E.Message
+            tempError := E.Message + ' - (' + CurrentQuery + ')'
           else
-            tempError := tempError + #13 + E.Message;
+            tempError := tempError + #13 + E.Message + ' - (' + CurrentQuery + ')';
 //          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
 //          exit;
         end;
@@ -782,6 +782,7 @@ begin
     for RoutinesName in SourceRoutines do
     begin
       sMemo2.Text := '';
+      tempNonTables := RoutinesName;
 
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
@@ -879,6 +880,7 @@ begin
     for RoutinesName in SourceRoutines do
     begin
       sMemo2.Text := '';
+      tempNonTables := RoutinesName;
 
       if CheckRoutines.IndexOf(RoutinesName) = -1 then
       begin
@@ -1010,6 +1012,7 @@ begin
         SourceQuery.ParamByName('Time').AsString := SourceTriggerInfo.Split(['|'])[0];
         SourceQuery.ParamByName('Event').AsString := SourceTriggerInfo.Split(['|'])[1];
         SourceQuery.Open;
+        tempNonTables := SourceQuery.Fields[0].AsString;
 
         SourceQuery.SQL.Text := 'USE ' + SourceDB + '; SHOW CREATE TRIGGER ' + SourceQuery.Fields[0].AsString + ';';
         SourceQuery.Open;
@@ -1054,6 +1057,7 @@ begin
         SourceQuery.ParamByName('Time').AsString := SourceTriggerInfo.Split(['|'])[0];
         SourceQuery.ParamByName('Event').AsString := SourceTriggerInfo.Split(['|'])[1];
         SourceQuery.Open;
+        tempNonTables := SourceQuery.Fields[0].AsString;
 
         CheckQuery.SQL.Text := TriggerQuery;
         CheckQuery.ParamByName('Database').AsString := CheckDB;
@@ -1144,9 +1148,9 @@ begin
         con2.Rollback;
 //        sMemo1.Cursor := crDefault;
         if tempError = '' then
-          tempError := E.Message
+          tempError := E.Message + ' - (' + tempNonTables + ')'
         else
-          tempError := tempError + #13 + E.Message;
+          tempError := tempError + #13 + E.Message  + ' - (' + tempNonTables + ')';
 //        ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
 //        exit;
       end;
@@ -1350,9 +1354,9 @@ begin
                 con2.Rollback;
 //                sMemo1.Cursor := crDefault;
                 if tempError = '' then
-                  tempError := E.Message
+                  tempError := E.Message + ' - (' + CurrentQuery + ')'
                 else
-                  tempError := tempError + #13 + E.Message;
+                  tempError := tempError + #13 + E.Message + ' - (' + CurrentQuery + ')';
 //                ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
 //                exit;
               end;
