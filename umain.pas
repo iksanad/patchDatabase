@@ -485,7 +485,7 @@ var
   SourceTables, CheckTables, SourceIndexes, CheckIndexes: TStringList;
   TableName, IndexName, ColumnName, childKeySource, childKeyCheck: string;
   SourceDB, CheckDB, tableQuery, QueryText, CurrentQuery: string;
-  StartPos, EndPos: Integer;
+  EndPos: Integer;
 begin
   SourceDB := cDBsource.Text;
   CheckDB := cDBcheck.Text;
@@ -520,6 +520,8 @@ begin
 
     for TableName in SourceTables do
     begin
+      sMemo2.Text := '';
+
       if CheckTables.IndexOf(TableName) = -1 then
       begin
         // Create Table
@@ -528,6 +530,9 @@ begin
 
         sMemo1.Lines.Add('DROP TABLE IF EXISTS `' + TableName + '`;');
         sMemo1.Lines.Add(SourceQuery.Fields[1].AsString + ';');
+
+        sMemo2.Lines.Add('DROP TABLE IF EXISTS `' + TableName + '`;');
+        sMemo2.Lines.Add(SourceQuery.Fields[1].AsString + ';');
       end
       else
       begin
@@ -559,16 +564,28 @@ begin
               if SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> '' then
               begin
                 if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;')
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
+                  sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
+                end
                 else
+                begin
                   sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
+                  sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
+                end;
               end
               else
               begin
                 if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;')
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
+                  sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
+                end
                 else
+                begin
                   sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
+                  sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` MODIFY COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
+                end;
               end;
             end;
           end
@@ -578,16 +595,28 @@ begin
             if SourceQuery.FieldByName('COLUMN_DEFAULT').AsString <> '' then
             begin
               if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;')
+              begin
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
+                sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NULL;');
+              end
               else
+              begin
                 sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
+                sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' DEFAULT ' + QuotedStr(SourceQuery.FieldByName('COLUMN_DEFAULT').AsString) + ' NOT NULL;');
+              end;
             end
             else
             begin
               if SourceQuery.FieldByName('IS_NULLABLE').AsString = 'YES' then
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;')
+              begin
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
+                sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NULL;');
+              end
               else
+              begin
                 sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
+                sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` ADD COLUMN `' + SourceQuery.FieldByName('COLUMN_NAME').AsString + '` ' + SourceQuery.FieldByName('COLUMN_TYPE').AsString + ' NOT NULL;');
+              end
             end;
           end;
 
@@ -628,13 +657,22 @@ begin
             begin
               // Add Index
               if IndexName = 'PRIMARY' then
-                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;')
+              begin
+                sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` ADD PRIMARY KEY (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+              end
               else
               begin
                 if SourceQuery.FieldByName('Non_unique').AsString = '0' then
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;')
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                  sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` ADD UNIQUE `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                end
                 else
+                begin
                   sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` ADD INDEX `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                  sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` ADD INDEX `' + IndexName + '` (' + GetCompositeColumns(SourceQuery, IndexName) + ') USING BTREE;');
+                end;
               end;
             end
             else
@@ -646,13 +684,22 @@ begin
               if (childKeySource <> childKeyCheck) and (childKeyCheck <> '') then
               begin
                 if IndexName = 'PRIMARY' then
-                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP PRIMARY KEY, ADD PRIMARY KEY (' + childKeySource + ') USING BTREE;')
+                begin
+                  sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP PRIMARY KEY, ADD PRIMARY KEY (' + childKeySource + ') USING BTREE;');
+                  sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` DROP PRIMARY KEY, ADD PRIMARY KEY (' + childKeySource + ') USING BTREE;');
+                end
                 else
                 begin
                   if SourceQuery.FieldByName('Non_unique').AsString = '0' then
-                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;')
+                  begin
+                    sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                    sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD UNIQUE `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                  end
                   else
+                  begin
                     sMemo1.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD INDEX `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                    sMemo2.Lines.Add('ALTER TABLE `' + TableName + '` DROP INDEX `' + IndexName + '`, ADD INDEX `' + IndexName + '` (' + childKeySource + ') USING BTREE;');
+                  end;
                 end;
               end;
             end;
@@ -662,48 +709,48 @@ begin
           CheckIndexes.Free;
         end;
       end;
-    end;
 
-    // untuk auto-patch
-    if autoPatch and (sMemo1.Text <> '') then
-    begin
-      QueryText := sMemo1.Text;
-      con2.Database := CheckDB;
-      if not con2.InTransaction then
-        con2.StartTransaction;
-      try
-        while QueryText <> '' do
-        begin
-          EndPos := Pos(';', QueryText);
-          if EndPos > 0 then
+      // untuk auto-patch
+      if autoPatch and (sMemo2.Text <> '') then
+      begin
+        QueryText := sMemo2.Text;
+        con2.Database := CheckDB;
+        if not con2.InTransaction then
+          con2.StartTransaction;
+        try
+          while QueryText <> '' do
           begin
-            CurrentQuery := Trim(Copy(QueryText, 1, EndPos - 1));
-            Delete(QueryText, 1, EndPos);
-          end
-          else
-          begin
-            CurrentQuery := Trim(QueryText);
-            QueryText := '';
-          end;
+            EndPos := Pos(';', QueryText);
+            if EndPos > 0 then
+            begin
+              CurrentQuery := Trim(Copy(QueryText, 1, EndPos - 1));
+              Delete(QueryText, 1, EndPos);
+            end
+            else
+            begin
+              CurrentQuery := Trim(QueryText);
+              QueryText := '';
+            end;
 
-          if CurrentQuery <> '' then
-          begin
-            sql1.SQL.Clear;
-            sql1.SQL.Text := CurrentQuery;
-            sql1.Execute;
+            if CurrentQuery <> '' then
+            begin
+              sql1.SQL.Clear;
+              sql1.SQL.Text := CurrentQuery;
+              sql1.Execute;
+            end;
           end;
-        end;
-      except
-        on E: Exception do
-        begin
-          con2.Rollback;
-//          sMemo1.Cursor := crDefault;
-          if tempError = '' then
-            tempError := E.Message + ' - (' + CurrentQuery + ')'
-          else
-            tempError := tempError + #13 + E.Message + ' - (' + CurrentQuery + ')';
-//          ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
-//          exit;
+        except
+          on E: Exception do
+          begin
+//            con2.Rollback;
+//            sMemo1.Cursor := crDefault;
+            if tempError = '' then
+              tempError := E.Message + ' - (' + TableName + ')'
+            else
+              tempError := tempError + #13 + E.Message + ' - (' + TableName + ')';
+//            ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
+//            exit;
+          end;
         end;
       end;
     end;
@@ -1128,7 +1175,7 @@ end;
 procedure TFPATCH.AutoPatching;
 var
   QueryText: string;
-  StartPos, EndPos: Integer;
+  EndPos: Integer;
 begin
   if autoPatch then
   begin
@@ -1145,7 +1192,7 @@ begin
     except
       on E: Exception do
       begin
-        con2.Rollback;
+//        con2.Rollback;
 //        sMemo1.Cursor := crDefault;
         if tempError = '' then
           tempError := E.Message + ' - (' + tempNonTables + ')'
@@ -1164,7 +1211,7 @@ var
   SourceDB, CheckDB, TableName, SourcePri, CheckPri: string;
   PatchFlag, hasChanges: boolean;
   QueryText, CurrentQuery: string;
-  StartPos, EndPos: Integer;
+  EndPos: Integer;
 begin
   SourceDB := cDBsource.Text;
   CheckDB := cDBcheck.Text;
@@ -1217,6 +1264,7 @@ begin
       begin
         while not SourceQuery.Eof do
         begin
+          sMemo2.Text := '';
           var nama_table_idValue := SourceQuery.FieldByName(SourcePri).AsString;
 
           if not CheckQuery.Locate(CheckPri, nama_table_idValue, []) then
@@ -1224,7 +1272,7 @@ begin
             // INSERT
             sMemo1.Lines.Add('DELETE FROM `' + TableName + '` WHERE `' + CheckPri + '`=' + QuotedStr(nama_table_idValue) + ';');
 
-            sMemo2.Text := '';
+//            sMemo2.Text := '';
             sMemo2.Lines.Add('DELETE FROM `' + TableName + '` WHERE `' + CheckPri + '`=' + QuotedStr(nama_table_idValue) + ';');
 
             var InsertStatement: string := 'INSERT INTO `' + TableName + '` (';
@@ -1256,7 +1304,7 @@ begin
             InsertStatement := InsertStatement + ') ' + ValuesStatement + ');';
             sMemo1.Lines.Add(InsertStatement);
 
-            sMemo2.Text := '';
+//            sMemo2.Text := '';
             sMemo2.Lines.Add(InsertStatement);
           end
           else
@@ -1314,7 +1362,7 @@ begin
                 updateStatement := updateStatement + ' WHERE `' + CheckPri + '` = ' + nama_table_idValue + ';';
                 sMemo1.Lines.Add(updateStatement);
 
-                sMemo2.Text := '';
+//                sMemo2.Text := '';
                 sMemo2.Lines.Add(updateStatement);
               end;
             end;
@@ -1351,12 +1399,12 @@ begin
             except
               on E: Exception do
               begin
-                con2.Rollback;
+//                con2.Rollback;
 //                sMemo1.Cursor := crDefault;
                 if tempError = '' then
-                  tempError := E.Message + ' - (' + CurrentQuery + ')'
+                  tempError := E.Message + ' - (' + TableName + ')'
                 else
-                  tempError := tempError + #13 + E.Message + ' - (' + CurrentQuery + ')';
+                  tempError := tempError + #13 + E.Message + ' - (' + TableName + ')';
 //                ShowMessage('Error during Auto-Patch : ' + #13 + E.Message);
 //                exit;
               end;
